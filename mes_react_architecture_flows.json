@@ -1,0 +1,4687 @@
+[
+  {
+    "id": "tab_pg",
+    "type": "tab",
+    "label": "01_PowerGrid",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "tab_fac",
+    "type": "tab",
+    "label": "02_Factory",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "tab_rail",
+    "type": "tab",
+    "label": "03_RailAuto",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "tab_glob",
+    "type": "tab",
+    "label": "04_Global",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "tab_api",
+    "type": "tab",
+    "label": "90_API",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "pg_tap_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get TAP",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 80,
+    "wires": [
+      [
+        "pg_tap_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_tap_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get TAP Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and r.node == \"TAP\")\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 80,
+    "wires": [
+      [
+        "pg_tap_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_tap_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 80,
+    "wires": [
+      [
+        "pg_tap_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_tap_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get TAP",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nconst tap = parseFloat(rows[0][idxValue]); msg.payload = { TAP: tap }; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 80,
+    "wires": [
+      [
+        "pg_tap_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_tap_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get TAP Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 80,
+    "wires": []
+  },
+  {
+    "id": "pg_tcp_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get TCP",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 160,
+    "wires": [
+      [
+        "pg_tcp_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_tcp_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get TCP Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and r.node == \"TCP\")\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 160,
+    "wires": [
+      [
+        "pg_tcp_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_tcp_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 160,
+    "wires": [
+      [
+        "pg_tcp_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_tcp_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get TCP",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nconst tcp = parseFloat(rows[0][idxValue]); msg.payload = { TCP: tcp }; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 160,
+    "wires": [
+      [
+        "pg_tcp_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_tcp_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get TCP Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "pg_delta_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Delta",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 240,
+    "wires": [
+      [
+        "pg_delta_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_delta_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Delta Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 240,
+    "wires": [
+      [
+        "pg_delta_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_delta_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 240,
+    "wires": [
+      [
+        "pg_delta_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_delta_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Delta",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=null,tcp=null; for (const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"TAP\") tap=v; if(n===\"TCP\") tcp=v;} msg.payload={TAP:tap,TCP:tcp,Delta:tap-tcp}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 240,
+    "wires": [
+      [
+        "pg_delta_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_delta_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Delta Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 240,
+    "wires": []
+  },
+  {
+    "id": "pg_source_states_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Source States",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 320,
+    "wires": [
+      [
+        "pg_source_states_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_source_states_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Source States Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC1\" and (r.node == \"PE.Etat\" or r.node == \"FS.Etat\" or r.node == \"GS.Etat\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 320,
+    "wires": [
+      [
+        "pg_source_states_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_source_states_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 320,
+    "wires": [
+      [
+        "pg_source_states_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_source_states_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Source States",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet out={}; for(const row of rows) out[row[idxNode]]=parseFloat(row[idxValue]); msg.payload=out; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 320,
+    "wires": [
+      [
+        "pg_source_states_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_source_states_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Source States Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 320,
+    "wires": []
+  },
+  {
+    "id": "pg_source_powers_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Source Powers",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 400,
+    "wires": [
+      [
+        "pg_source_powers_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_source_powers_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Source Powers Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"PE.Power\" or r.node == \"FS.Power\" or r.node == \"GS.Power\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 400,
+    "wires": [
+      [
+        "pg_source_powers_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_source_powers_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 400,
+    "wires": [
+      [
+        "pg_source_powers_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_source_powers_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Source Powers",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet out={}; for(const row of rows) out[row[idxNode]]=parseFloat(row[idxValue]); msg.payload=out; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 400,
+    "wires": [
+      [
+        "pg_source_powers_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_source_powers_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Source Powers Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 400,
+    "wires": []
+  },
+  {
+    "id": "pg_total_production_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Total Production",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 480,
+    "wires": [
+      [
+        "pg_total_production_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_total_production_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Total Production Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"PE.Power\" or r.node == \"FS.Power\" or r.node == \"GS.Power\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 480,
+    "wires": [
+      [
+        "pg_total_production_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_total_production_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 480,
+    "wires": [
+      [
+        "pg_total_production_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_total_production_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Total Production",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet pe=0,fs=0,gs=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"PE.Power\") pe=v; if(n===\"FS.Power\") fs=v; if(n===\"GS.Power\") gs=v;} msg.payload={PE:pe,FS:fs,GS:gs,ProductionTotale:pe+fs+gs}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 480,
+    "wires": [
+      [
+        "pg_total_production_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_total_production_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Total Production Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 480,
+    "wires": []
+  },
+  {
+    "id": "pg_source_mix_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Source Mix",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 560,
+    "wires": [
+      [
+        "pg_source_mix_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_source_mix_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Source Mix Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"PE.Power\" or r.node == \"FS.Power\" or r.node == \"GS.Power\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 560,
+    "wires": [
+      [
+        "pg_source_mix_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_source_mix_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 560,
+    "wires": [
+      [
+        "pg_source_mix_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_source_mix_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Source Mix",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet pe=0,fs=0,gs=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"PE.Power\") pe=v; if(n===\"FS.Power\") fs=v; if(n===\"GS.Power\") gs=v;} const total=pe+fs+gs; msg.payload={ProductionTotale:total,PE_pct:total?pe/total*100:0,FS_pct:total?fs/total*100:0,GS_pct:total?gs/total*100:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 560,
+    "wires": [
+      [
+        "pg_source_mix_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_source_mix_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Source Mix Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 560,
+    "wires": []
+  },
+  {
+    "id": "pg_active_sources_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Active Sources Count",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 640,
+    "wires": [
+      [
+        "pg_active_sources_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_active_sources_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Active Sources Count Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC1\" and (r.node == \"PE.Etat\" or r.node == \"FS.Etat\" or r.node == \"GS.Etat\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 640,
+    "wires": [
+      [
+        "pg_active_sources_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_active_sources_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 640,
+    "wires": [
+      [
+        "pg_active_sources_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_active_sources_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Active Sources Count",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet count=0,out={}; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); out[n]=v; if(v===1) count++;} out.SourcesActives=count; msg.payload=out; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 640,
+    "wires": [
+      [
+        "pg_active_sources_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_active_sources_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Active Sources Count Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 640,
+    "wires": []
+  },
+  {
+    "id": "pg_load_distribution_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Load Distribution",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 720,
+    "wires": [
+      [
+        "pg_load_distribution_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_load_distribution_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Load Distribution Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"Factory.Distribue\" or r.node == \"Homes.Distribue\" or r.node == \"Railway.Distribue\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 720,
+    "wires": [
+      [
+        "pg_load_distribution_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_load_distribution_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 720,
+    "wires": [
+      [
+        "pg_load_distribution_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_load_distribution_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Load Distribution",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet out={}; for(const row of rows) out[row[idxNode]]=parseFloat(row[idxValue]); msg.payload=out; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 720,
+    "wires": [
+      [
+        "pg_load_distribution_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_load_distribution_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Load Distribution Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 720,
+    "wires": []
+  },
+  {
+    "id": "pg_network_activity_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Network Activity",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 800,
+    "wires": [
+      [
+        "pg_network_activity_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_network_activity_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Network Activity Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC1\" and (r.node == \"Factory.Etat\" or r.node == \"Homes.Etat\" or r.node == \"Railway.Etat\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 800,
+    "wires": [
+      [
+        "pg_network_activity_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_network_activity_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 800,
+    "wires": [
+      [
+        "pg_network_activity_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_network_activity_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Network Activity",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet factory=0,homes=0,railway=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"Factory.Etat\") factory=v; if(n===\"Homes.Etat\") homes=v; if(n===\"Railway.Etat\") railway=v;} msg.payload={FactoryEtat:factory,HomesEtat:homes,RailwayEtat:railway,ReseauActif:(factory===1||homes===1||railway===1)?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 800,
+    "wires": [
+      [
+        "pg_network_activity_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_network_activity_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Network Activity Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 800,
+    "wires": []
+  },
+  {
+    "id": "pg_balance_state_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Balance State",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 880,
+    "wires": [
+      [
+        "pg_balance_state_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_balance_state_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Balance State Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 880,
+    "wires": [
+      [
+        "pg_balance_state_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_balance_state_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 880,
+    "wires": [
+      [
+        "pg_balance_state_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_balance_state_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Balance State",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=0,tcp=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"TAP\") tap=v; if(n===\"TCP\") tcp=v;} msg.payload={TAP:tap,TCP:tcp,Delta:tap-tcp,Deficit:tcp>tap?1:0,Surproduction:tap>tcp?1:0,Equilibre:tap===tcp?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 880,
+    "wires": [
+      [
+        "pg_balance_state_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_balance_state_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Balance State Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 880,
+    "wires": []
+  },
+  {
+    "id": "pg_utilization_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Utilization Rate",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 960,
+    "wires": [
+      [
+        "pg_utilization_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_utilization_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Utilization Rate Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 960,
+    "wires": [
+      [
+        "pg_utilization_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_utilization_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 960,
+    "wires": [
+      [
+        "pg_utilization_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_utilization_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Utilization Rate",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=0,tcp=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"TAP\") tap=v; if(n===\"TCP\") tcp=v;} msg.payload={TAP:tap,TCP:tcp,Utilisation:tap?tcp/tap:0,UtilisationPct:tap?tcp/tap*100:0,Desequilibre:Math.abs(tap-tcp)}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 960,
+    "wires": [
+      [
+        "pg_utilization_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_utilization_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Utilization Rate Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 960,
+    "wires": []
+  },
+  {
+    "id": "pg_reserve_margin_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Reserve Margin",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 1040,
+    "wires": [
+      [
+        "pg_reserve_margin_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_reserve_margin_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Reserve Margin Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 1040,
+    "wires": [
+      [
+        "pg_reserve_margin_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_reserve_margin_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 1040,
+    "wires": [
+      [
+        "pg_reserve_margin_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_reserve_margin_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Reserve Margin",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=0,tcp=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"TAP\") tap=v; if(n===\"TCP\") tcp=v;} msg.payload={TAP:tap,TCP:tcp,ReserveMargin:tap-tcp,ReservePct:tcp?((tap-tcp)/tcp)*100:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 1040,
+    "wires": [
+      [
+        "pg_reserve_margin_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_reserve_margin_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Reserve Margin Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 1040,
+    "wires": []
+  },
+  {
+    "id": "pg_supply_ratio_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Supply Ratio",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 1120,
+    "wires": [
+      [
+        "pg_supply_ratio_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_supply_ratio_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Supply Ratio Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 1120,
+    "wires": [
+      [
+        "pg_supply_ratio_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_supply_ratio_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 1120,
+    "wires": [
+      [
+        "pg_supply_ratio_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_supply_ratio_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Supply Ratio",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=0,tcp=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"TAP\") tap=v; if(n===\"TCP\") tcp=v;} msg.payload={SupplyRatio:tcp?tap/tcp:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 1120,
+    "wires": [
+      [
+        "pg_supply_ratio_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_supply_ratio_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Supply Ratio Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 1120,
+    "wires": []
+  },
+  {
+    "id": "pg_dominant_source_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Dominant Source",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 1200,
+    "wires": [
+      [
+        "pg_dominant_source_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_dominant_source_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Dominant Source Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"PE.Power\" or r.node == \"FS.Power\" or r.node == \"GS.Power\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 1200,
+    "wires": [
+      [
+        "pg_dominant_source_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_dominant_source_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 1200,
+    "wires": [
+      [
+        "pg_dominant_source_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_dominant_source_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Dominant Source",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet pe=0,fs=0,gs=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"PE.Power\") pe=v; if(n===\"FS.Power\") fs=v; if(n===\"GS.Power\") gs=v;} let source=\"Wind\",value=pe; if(fs>value){source=\"Solar\";value=fs;} if(gs>value){source=\"Gas\";value=gs;} msg.payload={PE:pe,FS:fs,GS:gs,DominantSource:source,DominantValue:value}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 1200,
+    "wires": [
+      [
+        "pg_dominant_source_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_dominant_source_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Dominant Source Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 1200,
+    "wires": []
+  },
+  {
+    "id": "pg_diversity_index_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Source Diversity Index",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 1280,
+    "wires": [
+      [
+        "pg_diversity_index_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_diversity_index_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Source Diversity Index Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"PE.Power\" or r.node == \"FS.Power\" or r.node == \"GS.Power\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 1280,
+    "wires": [
+      [
+        "pg_diversity_index_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_diversity_index_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 1280,
+    "wires": [
+      [
+        "pg_diversity_index_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_diversity_index_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Source Diversity Index",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet pe=0,fs=0,gs=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"PE.Power\") pe=v; if(n===\"FS.Power\") fs=v; if(n===\"GS.Power\") gs=v;} const total=pe+fs+gs; const shares=[pe,fs,gs].map(v=>total?v/total:0).filter(v=>v>0); const hhi=shares.reduce((a,s)=>a+s*s,0); msg.payload={ProductionTotale:total,HHI:hhi,SourceDiversityIndex:shares.length?1-hhi:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 1280,
+    "wires": [
+      [
+        "pg_diversity_index_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_diversity_index_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Source Diversity Index Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 1280,
+    "wires": []
+  },
+  {
+    "id": "pg_stability_score_inject",
+    "type": "inject",
+    "z": "tab_pg",
+    "name": "Get Grid Stability Score",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 1360,
+    "wires": [
+      [
+        "pg_stability_score_query"
+      ]
+    ]
+  },
+  {
+    "id": "pg_stability_score_query",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Build Get Grid Stability Score Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) =>\\n      (r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\")) or\\n      (r._measurement == \"powergrid\" and r.plc == \"PLC1\" and (r.node == \"PE.Etat\" or r.node == \"FS.Etat\" or r.node == \"GS.Etat\"))\\n    )\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 1360,
+    "wires": [
+      [
+        "pg_stability_score_http"
+      ]
+    ]
+  },
+  {
+    "id": "pg_stability_score_http",
+    "type": "http request",
+    "z": "tab_pg",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 1360,
+    "wires": [
+      [
+        "pg_stability_score_parse"
+      ]
+    ]
+  },
+  {
+    "id": "pg_stability_score_parse",
+    "type": "function",
+    "z": "tab_pg",
+    "name": "Parse Get Grid Stability Score",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=0,tcp=0,active=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"TAP\") tap=v; if(n===\"TCP\") tcp=v; if((n===\"PE.Etat\"||n===\"FS.Etat\"||n===\"GS.Etat\")&&v===1) active++;} const balance=tap?Math.max(0,1-Math.abs(tap-tcp)/tap):0; const stability=Math.round((balance*0.7+(active/3)*0.3)*100); msg.payload={TAP:tap,TCP:tcp,ActiveSources:active,GridStabilityScore:stability}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 1360,
+    "wires": [
+      [
+        "pg_stability_score_debug"
+      ]
+    ]
+  },
+  {
+    "id": "pg_stability_score_debug",
+    "type": "debug",
+    "z": "tab_pg",
+    "name": "Get Grid Stability Score Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 1360,
+    "wires": []
+  },
+  {
+    "id": "factory_state_inject",
+    "type": "inject",
+    "z": "tab_fac",
+    "name": "Factory State",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 80,
+    "wires": [
+      [
+        "factory_state_query"
+      ]
+    ]
+  },
+  {
+    "id": "factory_state_query",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Build Factory State Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and (r.node == \"EtatUsine\" or r.node == \"EtatInstallation\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 80,
+    "wires": [
+      [
+        "factory_state_http"
+      ]
+    ]
+  },
+  {
+    "id": "factory_state_http",
+    "type": "http request",
+    "z": "tab_fac",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 80,
+    "wires": [
+      [
+        "factory_state_parse"
+      ]
+    ]
+  },
+  {
+    "id": "factory_state_parse",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Parse Factory State",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet out={}; for(const row of rows) out[row[idxNode]]=parseFloat(row[idxValue]); msg.payload=out; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 80,
+    "wires": [
+      [
+        "factory_state_debug"
+      ]
+    ]
+  },
+  {
+    "id": "factory_state_debug",
+    "type": "debug",
+    "z": "tab_fac",
+    "name": "Factory State Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 80,
+    "wires": []
+  },
+  {
+    "id": "factory_cycle_inject",
+    "type": "inject",
+    "z": "tab_fac",
+    "name": "Factory Cycle",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 160,
+    "wires": [
+      [
+        "factory_cycle_query"
+      ]
+    ]
+  },
+  {
+    "id": "factory_cycle_query",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Build Factory Cycle Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and (r.node == \"CycleActif\" or r.node == \"CycleTermine\" or r.node == \"RecyclageActif\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 160,
+    "wires": [
+      [
+        "factory_cycle_http"
+      ]
+    ]
+  },
+  {
+    "id": "factory_cycle_http",
+    "type": "http request",
+    "z": "tab_fac",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 160,
+    "wires": [
+      [
+        "factory_cycle_parse"
+      ]
+    ]
+  },
+  {
+    "id": "factory_cycle_parse",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Parse Factory Cycle",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet out={}; for(const row of rows) out[row[idxNode]]=parseFloat(row[idxValue]); msg.payload=out; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 160,
+    "wires": [
+      [
+        "factory_cycle_debug"
+      ]
+    ]
+  },
+  {
+    "id": "factory_cycle_debug",
+    "type": "debug",
+    "z": "tab_fac",
+    "name": "Factory Cycle Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "factory_tanks_inject",
+    "type": "inject",
+    "z": "tab_fac",
+    "name": "Factory Tanks",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 240,
+    "wires": [
+      [
+        "factory_tanks_query"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tanks_query",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Build Factory Tanks Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and (r.node == \"Cuve1.NiveauBas\" or r.node == \"Cuve1.NiveauHaut\" or r.node == \"Cuve2.NiveauBas\" or r.node == \"Cuve2.NiveauHaut\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 240,
+    "wires": [
+      [
+        "factory_tanks_http"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tanks_http",
+    "type": "http request",
+    "z": "tab_fac",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 240,
+    "wires": [
+      [
+        "factory_tanks_parse"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tanks_parse",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Parse Factory Tanks",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet out={}; for(const row of rows) out[row[idxNode]]=parseFloat(row[idxValue]); msg.payload=out; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 240,
+    "wires": [
+      [
+        "factory_tanks_debug"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tanks_debug",
+    "type": "debug",
+    "z": "tab_fac",
+    "name": "Factory Tanks Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 240,
+    "wires": []
+  },
+  {
+    "id": "factory_install_active_inject",
+    "type": "inject",
+    "z": "tab_fac",
+    "name": "Factory Installation Active",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 320,
+    "wires": [
+      [
+        "factory_install_active_query"
+      ]
+    ]
+  },
+  {
+    "id": "factory_install_active_query",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Build Factory Installation Active Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and r.node == \"EtatInstallation\")\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 320,
+    "wires": [
+      [
+        "factory_install_active_http"
+      ]
+    ]
+  },
+  {
+    "id": "factory_install_active_http",
+    "type": "http request",
+    "z": "tab_fac",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 320,
+    "wires": [
+      [
+        "factory_install_active_parse"
+      ]
+    ]
+  },
+  {
+    "id": "factory_install_active_parse",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Parse Factory Installation Active",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nconst v=parseFloat(rows[0][idxValue]); msg.payload={EtatInstallation:v,InstallationActive:v===1?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 320,
+    "wires": [
+      [
+        "factory_install_active_debug"
+      ]
+    ]
+  },
+  {
+    "id": "factory_install_active_debug",
+    "type": "debug",
+    "z": "tab_fac",
+    "name": "Factory Installation Active Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 320,
+    "wires": []
+  },
+  {
+    "id": "factory_cycle_complete_inject",
+    "type": "inject",
+    "z": "tab_fac",
+    "name": "Factory Cycle Complete",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 400,
+    "wires": [
+      [
+        "factory_cycle_complete_query"
+      ]
+    ]
+  },
+  {
+    "id": "factory_cycle_complete_query",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Build Factory Cycle Complete Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and (r.node == \"CycleActif\" or r.node == \"CycleTermine\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 400,
+    "wires": [
+      [
+        "factory_cycle_complete_http"
+      ]
+    ]
+  },
+  {
+    "id": "factory_cycle_complete_http",
+    "type": "http request",
+    "z": "tab_fac",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 400,
+    "wires": [
+      [
+        "factory_cycle_complete_parse"
+      ]
+    ]
+  },
+  {
+    "id": "factory_cycle_complete_parse",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Parse Factory Cycle Complete",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet actif=0,termine=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"CycleActif\") actif=v; if(n===\"CycleTermine\") termine=v;} msg.payload={CycleActif:actif,CycleTermine:termine,CycleEnCours:actif===1&&termine===0?1:0,CycleComplet:termine===1?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 400,
+    "wires": [
+      [
+        "factory_cycle_complete_debug"
+      ]
+    ]
+  },
+  {
+    "id": "factory_cycle_complete_debug",
+    "type": "debug",
+    "z": "tab_fac",
+    "name": "Factory Cycle Complete Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 400,
+    "wires": []
+  },
+  {
+    "id": "factory_tanks_full_inject",
+    "type": "inject",
+    "z": "tab_fac",
+    "name": "Factory Tanks Full",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 480,
+    "wires": [
+      [
+        "factory_tanks_full_query"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tanks_full_query",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Build Factory Tanks Full Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and (r.node == \"Cuve1.NiveauHaut\" or r.node == \"Cuve2.NiveauHaut\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 480,
+    "wires": [
+      [
+        "factory_tanks_full_http"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tanks_full_http",
+    "type": "http request",
+    "z": "tab_fac",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 480,
+    "wires": [
+      [
+        "factory_tanks_full_parse"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tanks_full_parse",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Parse Factory Tanks Full",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet c1=0,c2=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"Cuve1.NiveauHaut\") c1=v; if(n===\"Cuve2.NiveauHaut\") c2=v;} msg.payload={Cuve1NiveauHaut:c1,Cuve2NiveauHaut:c2,CuvesPleines:(c1===1?1:0)+(c2===1?1:0)}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 480,
+    "wires": [
+      [
+        "factory_tanks_full_debug"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tanks_full_debug",
+    "type": "debug",
+    "z": "tab_fac",
+    "name": "Factory Tanks Full Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 480,
+    "wires": []
+  },
+  {
+    "id": "factory_tanks_empty_inject",
+    "type": "inject",
+    "z": "tab_fac",
+    "name": "Factory Tanks Empty",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 560,
+    "wires": [
+      [
+        "factory_tanks_empty_query"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tanks_empty_query",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Build Factory Tanks Empty Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and (r.node == \"Cuve1.NiveauBas\" or r.node == \"Cuve2.NiveauBas\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 560,
+    "wires": [
+      [
+        "factory_tanks_empty_http"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tanks_empty_http",
+    "type": "http request",
+    "z": "tab_fac",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 560,
+    "wires": [
+      [
+        "factory_tanks_empty_parse"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tanks_empty_parse",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Parse Factory Tanks Empty",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet c1=0,c2=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"Cuve1.NiveauBas\") c1=v; if(n===\"Cuve2.NiveauBas\") c2=v;} msg.payload={Cuve1NiveauBas:c1,Cuve2NiveauBas:c2,CuvesVides:(c1===1?1:0)+(c2===1?1:0)}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 560,
+    "wires": [
+      [
+        "factory_tanks_empty_debug"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tanks_empty_debug",
+    "type": "debug",
+    "z": "tab_fac",
+    "name": "Factory Tanks Empty Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 560,
+    "wires": []
+  },
+  {
+    "id": "factory_recycle_inject",
+    "type": "inject",
+    "z": "tab_fac",
+    "name": "Factory Recycle",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 640,
+    "wires": [
+      [
+        "factory_recycle_query"
+      ]
+    ]
+  },
+  {
+    "id": "factory_recycle_query",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Build Factory Recycle Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and r.node == \"RecyclageActif\")\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 640,
+    "wires": [
+      [
+        "factory_recycle_http"
+      ]
+    ]
+  },
+  {
+    "id": "factory_recycle_http",
+    "type": "http request",
+    "z": "tab_fac",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 640,
+    "wires": [
+      [
+        "factory_recycle_parse"
+      ]
+    ]
+  },
+  {
+    "id": "factory_recycle_parse",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Parse Factory Recycle",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nconst v=parseFloat(rows[0][idxValue]); msg.payload={RecyclageActif:v,Recyclage:v===1?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 640,
+    "wires": [
+      [
+        "factory_recycle_debug"
+      ]
+    ]
+  },
+  {
+    "id": "factory_recycle_debug",
+    "type": "debug",
+    "z": "tab_fac",
+    "name": "Factory Recycle Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 640,
+    "wires": []
+  },
+  {
+    "id": "factory_global_state_inject",
+    "type": "inject",
+    "z": "tab_fac",
+    "name": "Factory Global State",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 720,
+    "wires": [
+      [
+        "factory_global_state_query"
+      ]
+    ]
+  },
+  {
+    "id": "factory_global_state_query",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Build Factory Global State Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and (r.node == \"EtatInstallation\" or r.node == \"EtatUsine\" or r.node == \"CycleActif\" or r.node == \"CycleTermine\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 720,
+    "wires": [
+      [
+        "factory_global_state_http"
+      ]
+    ]
+  },
+  {
+    "id": "factory_global_state_http",
+    "type": "http request",
+    "z": "tab_fac",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 720,
+    "wires": [
+      [
+        "factory_global_state_parse"
+      ]
+    ]
+  },
+  {
+    "id": "factory_global_state_parse",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Parse Factory Global State",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet ei=0,eu=0,ca=0,ct=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"EtatInstallation\") ei=v; if(n===\"EtatUsine\") eu=v; if(n===\"CycleActif\") ca=v; if(n===\"CycleTermine\") ct=v;} msg.payload={EtatInstallation:ei,EtatUsine:eu,CycleActif:ca,CycleTermine:ct,EtatGlobal:(ei===1&&eu===1)?1:0,DisponibiliteFactory:ei===1?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 720,
+    "wires": [
+      [
+        "factory_global_state_debug"
+      ]
+    ]
+  },
+  {
+    "id": "factory_global_state_debug",
+    "type": "debug",
+    "z": "tab_fac",
+    "name": "Factory Global State Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 720,
+    "wires": []
+  },
+  {
+    "id": "factory_efficiency_inject",
+    "type": "inject",
+    "z": "tab_fac",
+    "name": "Factory Efficiency Score",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 800,
+    "wires": [
+      [
+        "factory_efficiency_query"
+      ]
+    ]
+  },
+  {
+    "id": "factory_efficiency_query",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Build Factory Efficiency Score Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and (r.node == \"EtatInstallation\" or r.node == \"CycleActif\" or r.node == \"CycleTermine\" or r.node == \"RecyclageActif\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 800,
+    "wires": [
+      [
+        "factory_efficiency_http"
+      ]
+    ]
+  },
+  {
+    "id": "factory_efficiency_http",
+    "type": "http request",
+    "z": "tab_fac",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 800,
+    "wires": [
+      [
+        "factory_efficiency_parse"
+      ]
+    ]
+  },
+  {
+    "id": "factory_efficiency_parse",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Parse Factory Efficiency Score",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet ei=0,ca=0,ct=0,ra=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"EtatInstallation\") ei=v; if(n===\"CycleActif\") ca=v; if(n===\"CycleTermine\") ct=v; if(n===\"RecyclageActif\") ra=v;} const score=(ei*40)+(ca*20)+(ct*30)+(ra*10); msg.payload={EtatInstallation:ei,CycleActif:ca,CycleTermine:ct,RecyclageActif:ra,ScoreFactory:score}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 800,
+    "wires": [
+      [
+        "factory_efficiency_debug"
+      ]
+    ]
+  },
+  {
+    "id": "factory_efficiency_debug",
+    "type": "debug",
+    "z": "tab_fac",
+    "name": "Factory Efficiency Score Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 800,
+    "wires": []
+  },
+  {
+    "id": "factory_tank_balance_inject",
+    "type": "inject",
+    "z": "tab_fac",
+    "name": "Factory Tank Balance",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 880,
+    "wires": [
+      [
+        "factory_tank_balance_query"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tank_balance_query",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Build Factory Tank Balance Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and (r.node == \"Cuve1.NiveauBas\" or r.node == \"Cuve1.NiveauHaut\" or r.node == \"Cuve2.NiveauBas\" or r.node == \"Cuve2.NiveauHaut\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 880,
+    "wires": [
+      [
+        "factory_tank_balance_http"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tank_balance_http",
+    "type": "http request",
+    "z": "tab_fac",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 880,
+    "wires": [
+      [
+        "factory_tank_balance_parse"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tank_balance_parse",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Parse Factory Tank Balance",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet c1b=0,c1h=0,c2b=0,c2h=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"Cuve1.NiveauBas\") c1b=v; if(n===\"Cuve1.NiveauHaut\") c1h=v; if(n===\"Cuve2.NiveauBas\") c2b=v; if(n===\"Cuve2.NiveauHaut\") c2h=v;} msg.payload={Cuve1State:c1h===1?\"High\":(c1b===1?\"Low\":\"Normal\"),Cuve2State:c2h===1?\"High\":(c2b===1?\"Low\":\"Normal\"),TankBalanceIndex:(c1h+c2h)-(c1b+c2b)}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 880,
+    "wires": [
+      [
+        "factory_tank_balance_debug"
+      ]
+    ]
+  },
+  {
+    "id": "factory_tank_balance_debug",
+    "type": "debug",
+    "z": "tab_fac",
+    "name": "Factory Tank Balance Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 880,
+    "wires": []
+  },
+  {
+    "id": "factory_operational_risk_inject",
+    "type": "inject",
+    "z": "tab_fac",
+    "name": "Factory Operational Risk",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 960,
+    "wires": [
+      [
+        "factory_operational_risk_query"
+      ]
+    ]
+  },
+  {
+    "id": "factory_operational_risk_query",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Build Factory Operational Risk Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and (r.node == \"EtatInstallation\" or r.node == \"CycleActif\" or r.node == \"CycleTermine\" or r.node == \"Cuve1.NiveauBas\" or r.node == \"Cuve2.NiveauBas\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 960,
+    "wires": [
+      [
+        "factory_operational_risk_http"
+      ]
+    ]
+  },
+  {
+    "id": "factory_operational_risk_http",
+    "type": "http request",
+    "z": "tab_fac",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 960,
+    "wires": [
+      [
+        "factory_operational_risk_parse"
+      ]
+    ]
+  },
+  {
+    "id": "factory_operational_risk_parse",
+    "type": "function",
+    "z": "tab_fac",
+    "name": "Parse Factory Operational Risk",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet ei=0,ca=0,ct=0,c1b=0,c2b=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"EtatInstallation\") ei=v; if(n===\"CycleActif\") ca=v; if(n===\"CycleTermine\") ct=v; if(n===\"Cuve1.NiveauBas\") c1b=v; if(n===\"Cuve2.NiveauBas\") c2b=v;} const risk=(ei===0?50:0)+((ca===1&&ct===0)?20:0)+((c1b===1?15:0)+(c2b===1?15:0)); msg.payload={EtatInstallation:ei,CycleActif:ca,CycleTermine:ct,Cuve1NiveauBas:c1b,Cuve2NiveauBas:c2b,OperationalRiskScore:risk}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 960,
+    "wires": [
+      [
+        "factory_operational_risk_debug"
+      ]
+    ]
+  },
+  {
+    "id": "factory_operational_risk_debug",
+    "type": "debug",
+    "z": "tab_fac",
+    "name": "Factory Operational Risk Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 960,
+    "wires": []
+  },
+  {
+    "id": "rail_steps_inject",
+    "type": "inject",
+    "z": "tab_rail",
+    "name": "Rail Steps",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 80,
+    "wires": [
+      [
+        "rail_steps_query"
+      ]
+    ]
+  },
+  {
+    "id": "rail_steps_query",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Build Rail Steps Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 80,
+    "wires": [
+      [
+        "rail_steps_http"
+      ]
+    ]
+  },
+  {
+    "id": "rail_steps_http",
+    "type": "http request",
+    "z": "tab_rail",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 80,
+    "wires": [
+      [
+        "rail_steps_parse"
+      ]
+    ]
+  },
+  {
+    "id": "rail_steps_parse",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Parse Rail Steps",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet out={\"Etape1.Terminee\":0,\"Etape2.Terminee\":0,\"Etape3.Terminee\":0,\"Etape4.Terminee\":0}; for(const row of rows) out[row[idxNode]]=parseFloat(row[idxValue]); msg.payload=out; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 80,
+    "wires": [
+      [
+        "rail_steps_debug"
+      ]
+    ]
+  },
+  {
+    "id": "rail_steps_debug",
+    "type": "debug",
+    "z": "tab_rail",
+    "name": "Rail Steps Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 80,
+    "wires": []
+  },
+  {
+    "id": "rail_progress_inject",
+    "type": "inject",
+    "z": "tab_rail",
+    "name": "Rail Progress",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 160,
+    "wires": [
+      [
+        "rail_progress_query"
+      ]
+    ]
+  },
+  {
+    "id": "rail_progress_query",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Build Rail Progress Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 160,
+    "wires": [
+      [
+        "rail_progress_http"
+      ]
+    ]
+  },
+  {
+    "id": "rail_progress_http",
+    "type": "http request",
+    "z": "tab_rail",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 160,
+    "wires": [
+      [
+        "rail_progress_parse"
+      ]
+    ]
+  },
+  {
+    "id": "rail_progress_parse",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Parse Rail Progress",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet out={\"Etape1.Terminee\":0,\"Etape2.Terminee\":0,\"Etape3.Terminee\":0,\"Etape4.Terminee\":0}; for(const row of rows) out[row[idxNode]]=parseFloat(row[idxValue]); const progression=(out[\"Etape1.Terminee\"]+out[\"Etape2.Terminee\"]+out[\"Etape3.Terminee\"]+out[\"Etape4.Terminee\"])*25; msg.payload={...out,ProgressionRailAuto:progression}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 160,
+    "wires": [
+      [
+        "rail_progress_debug"
+      ]
+    ]
+  },
+  {
+    "id": "rail_progress_debug",
+    "type": "debug",
+    "z": "tab_rail",
+    "name": "Rail Progress Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "rail_completed_count_inject",
+    "type": "inject",
+    "z": "tab_rail",
+    "name": "Rail Completed Count",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 240,
+    "wires": [
+      [
+        "rail_completed_count_query"
+      ]
+    ]
+  },
+  {
+    "id": "rail_completed_count_query",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Build Rail Completed Count Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 240,
+    "wires": [
+      [
+        "rail_completed_count_http"
+      ]
+    ]
+  },
+  {
+    "id": "rail_completed_count_http",
+    "type": "http request",
+    "z": "tab_rail",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 240,
+    "wires": [
+      [
+        "rail_completed_count_parse"
+      ]
+    ]
+  },
+  {
+    "id": "rail_completed_count_parse",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Parse Rail Completed Count",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet count=0; for(const row of rows) if(parseFloat(row[idxValue])===1) count++; msg.payload={EtapesTerminees:count}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 240,
+    "wires": [
+      [
+        "rail_completed_count_debug"
+      ]
+    ]
+  },
+  {
+    "id": "rail_completed_count_debug",
+    "type": "debug",
+    "z": "tab_rail",
+    "name": "Rail Completed Count Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 240,
+    "wires": []
+  },
+  {
+    "id": "rail_started_inject",
+    "type": "inject",
+    "z": "tab_rail",
+    "name": "Rail Started",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 320,
+    "wires": [
+      [
+        "rail_started_query"
+      ]
+    ]
+  },
+  {
+    "id": "rail_started_query",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Build Rail Started Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"railauto\" and r.node == \"Etape1.Terminee\")\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 320,
+    "wires": [
+      [
+        "rail_started_http"
+      ]
+    ]
+  },
+  {
+    "id": "rail_started_http",
+    "type": "http request",
+    "z": "tab_rail",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 320,
+    "wires": [
+      [
+        "rail_started_parse"
+      ]
+    ]
+  },
+  {
+    "id": "rail_started_parse",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Parse Rail Started",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nconst e1=parseFloat(rows[0][idxValue]); msg.payload={Etape1_Terminee:e1,ProcessusDemarre:e1===1?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 320,
+    "wires": [
+      [
+        "rail_started_debug"
+      ]
+    ]
+  },
+  {
+    "id": "rail_started_debug",
+    "type": "debug",
+    "z": "tab_rail",
+    "name": "Rail Started Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 320,
+    "wires": []
+  },
+  {
+    "id": "rail_finished_inject",
+    "type": "inject",
+    "z": "tab_rail",
+    "name": "Rail Finished",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 400,
+    "wires": [
+      [
+        "rail_finished_query"
+      ]
+    ]
+  },
+  {
+    "id": "rail_finished_query",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Build Rail Finished Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"railauto\" and r.node == \"Etape4.Terminee\")\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 400,
+    "wires": [
+      [
+        "rail_finished_http"
+      ]
+    ]
+  },
+  {
+    "id": "rail_finished_http",
+    "type": "http request",
+    "z": "tab_rail",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 400,
+    "wires": [
+      [
+        "rail_finished_parse"
+      ]
+    ]
+  },
+  {
+    "id": "rail_finished_parse",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Parse Rail Finished",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nconst e4=parseFloat(rows[0][idxValue]); msg.payload={Etape4_Terminee:e4,ProcessusTermine:e4===1?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 400,
+    "wires": [
+      [
+        "rail_finished_debug"
+      ]
+    ]
+  },
+  {
+    "id": "rail_finished_debug",
+    "type": "debug",
+    "z": "tab_rail",
+    "name": "Rail Finished Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 400,
+    "wires": []
+  },
+  {
+    "id": "rail_block_risk_inject",
+    "type": "inject",
+    "z": "tab_rail",
+    "name": "Rail Block Risk",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 480,
+    "wires": [
+      [
+        "rail_block_risk_query"
+      ]
+    ]
+  },
+  {
+    "id": "rail_block_risk_query",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Build Rail Block Risk Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 480,
+    "wires": [
+      [
+        "rail_block_risk_http"
+      ]
+    ]
+  },
+  {
+    "id": "rail_block_risk_http",
+    "type": "http request",
+    "z": "tab_rail",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 480,
+    "wires": [
+      [
+        "rail_block_risk_parse"
+      ]
+    ]
+  },
+  {
+    "id": "rail_block_risk_parse",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Parse Rail Block Risk",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet e1=0,e2=0,e3=0,e4=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"Etape1.Terminee\") e1=v; if(n===\"Etape2.Terminee\") e2=v; if(n===\"Etape3.Terminee\") e3=v; if(n===\"Etape4.Terminee\") e4=v;} msg.payload={Etape1:e1,Etape2:e2,Etape3:e3,Etape4:e4,RisqueBlocage:(e1===1&&e4===0)?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 480,
+    "wires": [
+      [
+        "rail_block_risk_debug"
+      ]
+    ]
+  },
+  {
+    "id": "rail_block_risk_debug",
+    "type": "debug",
+    "z": "tab_rail",
+    "name": "Rail Block Risk Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 480,
+    "wires": []
+  },
+  {
+    "id": "rail_ratio_inject",
+    "type": "inject",
+    "z": "tab_rail",
+    "name": "Rail Ratio",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 560,
+    "wires": [
+      [
+        "rail_ratio_query"
+      ]
+    ]
+  },
+  {
+    "id": "rail_ratio_query",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Build Rail Ratio Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 560,
+    "wires": [
+      [
+        "rail_ratio_http"
+      ]
+    ]
+  },
+  {
+    "id": "rail_ratio_http",
+    "type": "http request",
+    "z": "tab_rail",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 560,
+    "wires": [
+      [
+        "rail_ratio_parse"
+      ]
+    ]
+  },
+  {
+    "id": "rail_ratio_parse",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Parse Rail Ratio",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet count=0; for(const row of rows) if(parseFloat(row[idxValue])===1) count++; msg.payload={EtapesTerminees:count,RatioProgression:count/4}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 560,
+    "wires": [
+      [
+        "rail_ratio_debug"
+      ]
+    ]
+  },
+  {
+    "id": "rail_ratio_debug",
+    "type": "debug",
+    "z": "tab_rail",
+    "name": "Rail Ratio Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 560,
+    "wires": []
+  },
+  {
+    "id": "rail_score_inject",
+    "type": "inject",
+    "z": "tab_rail",
+    "name": "Rail Score",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 640,
+    "wires": [
+      [
+        "rail_score_query"
+      ]
+    ]
+  },
+  {
+    "id": "rail_score_query",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Build Rail Score Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 640,
+    "wires": [
+      [
+        "rail_score_http"
+      ]
+    ]
+  },
+  {
+    "id": "rail_score_http",
+    "type": "http request",
+    "z": "tab_rail",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 640,
+    "wires": [
+      [
+        "rail_score_parse"
+      ]
+    ]
+  },
+  {
+    "id": "rail_score_parse",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Parse Rail Score",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet e=[0,0,0,0]; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"Etape1.Terminee\") e[0]=v; if(n===\"Etape2.Terminee\") e[1]=v; if(n===\"Etape3.Terminee\") e[2]=v; if(n===\"Etape4.Terminee\") e[3]=v;} const score=e[0]*10+e[1]*20+e[2]*30+e[3]*40; msg.payload={Etapes:e,ScoreRailAuto:score}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 640,
+    "wires": [
+      [
+        "rail_score_debug"
+      ]
+    ]
+  },
+  {
+    "id": "rail_score_debug",
+    "type": "debug",
+    "z": "tab_rail",
+    "name": "Rail Score Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 640,
+    "wires": []
+  },
+  {
+    "id": "rail_velocity_inject",
+    "type": "inject",
+    "z": "tab_rail",
+    "name": "Rail Velocity",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 720,
+    "wires": [
+      [
+        "rail_velocity_query"
+      ]
+    ]
+  },
+  {
+    "id": "rail_velocity_query",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Build Rail Velocity Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 720,
+    "wires": [
+      [
+        "rail_velocity_http"
+      ]
+    ]
+  },
+  {
+    "id": "rail_velocity_http",
+    "type": "http request",
+    "z": "tab_rail",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 720,
+    "wires": [
+      [
+        "rail_velocity_parse"
+      ]
+    ]
+  },
+  {
+    "id": "rail_velocity_parse",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Parse Rail Velocity",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet count=0; for(const row of rows) if(parseFloat(row[idxValue])===1) count++; msg.payload={EtapesTerminees:count,VelocityScore:count*25}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 720,
+    "wires": [
+      [
+        "rail_velocity_debug"
+      ]
+    ]
+  },
+  {
+    "id": "rail_velocity_debug",
+    "type": "debug",
+    "z": "tab_rail",
+    "name": "Rail Velocity Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 720,
+    "wires": []
+  },
+  {
+    "id": "rail_completion_class_inject",
+    "type": "inject",
+    "z": "tab_rail",
+    "name": "Rail Completion Class",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 800,
+    "wires": [
+      [
+        "rail_completion_class_query"
+      ]
+    ]
+  },
+  {
+    "id": "rail_completion_class_query",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Build Rail Completion Class Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 800,
+    "wires": [
+      [
+        "rail_completion_class_http"
+      ]
+    ]
+  },
+  {
+    "id": "rail_completion_class_http",
+    "type": "http request",
+    "z": "tab_rail",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 800,
+    "wires": [
+      [
+        "rail_completion_class_parse"
+      ]
+    ]
+  },
+  {
+    "id": "rail_completion_class_parse",
+    "type": "function",
+    "z": "tab_rail",
+    "name": "Parse Rail Completion Class",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet count=0; for(const row of rows) if(parseFloat(row[idxValue])===1) count++; let cls=\"Idle\"; if(count===4) cls=\"Completed\"; else if(count>=2) cls=\"In Progress\"; else if(count===1) cls=\"Started\"; msg.payload={EtapesTerminees:count,CompletionClass:cls}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 800,
+    "wires": [
+      [
+        "rail_completion_class_debug"
+      ]
+    ]
+  },
+  {
+    "id": "rail_completion_class_debug",
+    "type": "debug",
+    "z": "tab_rail",
+    "name": "Rail Completion Class Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 800,
+    "wires": []
+  },
+  {
+    "id": "global_health_inject",
+    "type": "inject",
+    "z": "tab_glob",
+    "name": "Global Health",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 80,
+    "wires": [
+      [
+        "global_health_query"
+      ]
+    ]
+  },
+  {
+    "id": "global_health_query",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Build Global Health Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) =>\\n      (r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\")) or\\n      (r._measurement == \"factory\" and (r.node == \"EtatInstallation\" or r.node == \"CycleActif\")) or\\n      (r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n    )\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 80,
+    "wires": [
+      [
+        "global_health_http"
+      ]
+    ]
+  },
+  {
+    "id": "global_health_http",
+    "type": "http request",
+    "z": "tab_glob",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 80,
+    "wires": [
+      [
+        "global_health_parse"
+      ]
+    ]
+  },
+  {
+    "id": "global_health_parse",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Parse Global Health",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=0,tcp=0,ei=0,ca=0,railCount=0; for(const row of rows){const m=row[idxMsr],n=row[idxNode],v=parseFloat(row[idxValue]); if(m===\"powergrid\"&&n===\"TAP\") tap=v; if(m===\"powergrid\"&&n===\"TCP\") tcp=v; if(m===\"factory\"&&n===\"EtatInstallation\") ei=v; if(m===\"factory\"&&n===\"CycleActif\") ca=v; if(m===\"railauto\"&&v===1) railCount++;} msg.payload={Delta:tap-tcp,FactoryReady:ei,FactoryCycle:ca,RailProgressPct:railCount*25,SystemOK:(ei===1&&(tap>=tcp))?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 80,
+    "wires": [
+      [
+        "global_health_debug"
+      ]
+    ]
+  },
+  {
+    "id": "global_health_debug",
+    "type": "debug",
+    "z": "tab_glob",
+    "name": "Global Health Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 80,
+    "wires": []
+  },
+  {
+    "id": "global_activity_inject",
+    "type": "inject",
+    "z": "tab_glob",
+    "name": "Global Activity",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 160,
+    "wires": [
+      [
+        "global_activity_query"
+      ]
+    ]
+  },
+  {
+    "id": "global_activity_query",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Build Global Activity Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) =>\\n      (r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"PE.Power\" or r.node == \"FS.Power\" or r.node == \"GS.Power\")) or\\n      (r._measurement == \"factory\" and r.node == \"CycleActif\") or\\n      (r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n    )\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 160,
+    "wires": [
+      [
+        "global_activity_http"
+      ]
+    ]
+  },
+  {
+    "id": "global_activity_http",
+    "type": "http request",
+    "z": "tab_glob",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 160,
+    "wires": [
+      [
+        "global_activity_parse"
+      ]
+    ]
+  },
+  {
+    "id": "global_activity_parse",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Parse Global Activity",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet prod=0,cycle=0,railCount=0; for(const row of rows){const m=row[idxMsr],n=row[idxNode],v=parseFloat(row[idxValue]); if(m===\"powergrid\") prod += v; if(m===\"factory\"&&n===\"CycleActif\") cycle=v; if(m===\"railauto\"&&v===1) railCount++;} msg.payload={ProductionTotale:prod,CycleActif:cycle,EtapesTerminees:railCount,ActiviteGlobale:(prod>0||cycle===1||railCount>0)?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 160,
+    "wires": [
+      [
+        "global_activity_debug"
+      ]
+    ]
+  },
+  {
+    "id": "global_activity_debug",
+    "type": "debug",
+    "z": "tab_glob",
+    "name": "Global Activity Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "global_deficit_alert_inject",
+    "type": "inject",
+    "z": "tab_glob",
+    "name": "Global Deficit Alert",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 240,
+    "wires": [
+      [
+        "global_deficit_alert_query"
+      ]
+    ]
+  },
+  {
+    "id": "global_deficit_alert_query",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Build Global Deficit Alert Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 240,
+    "wires": [
+      [
+        "global_deficit_alert_http"
+      ]
+    ]
+  },
+  {
+    "id": "global_deficit_alert_http",
+    "type": "http request",
+    "z": "tab_glob",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 240,
+    "wires": [
+      [
+        "global_deficit_alert_parse"
+      ]
+    ]
+  },
+  {
+    "id": "global_deficit_alert_parse",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Parse Global Deficit Alert",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=0,tcp=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"TAP\") tap=v; if(n===\"TCP\") tcp=v;} msg.payload={TAP:tap,TCP:tcp,Delta:tap-tcp,AlerteDeficit:tcp>tap?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 240,
+    "wires": [
+      [
+        "global_deficit_alert_debug"
+      ]
+    ]
+  },
+  {
+    "id": "global_deficit_alert_debug",
+    "type": "debug",
+    "z": "tab_glob",
+    "name": "Global Deficit Alert Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 240,
+    "wires": []
+  },
+  {
+    "id": "global_factory_alert_inject",
+    "type": "inject",
+    "z": "tab_glob",
+    "name": "Global Factory Alert",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 320,
+    "wires": [
+      [
+        "global_factory_alert_query"
+      ]
+    ]
+  },
+  {
+    "id": "global_factory_alert_query",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Build Global Factory Alert Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and (r.node == \"CycleActif\" or r.node == \"CycleTermine\" or r.node == \"EtatInstallation\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 320,
+    "wires": [
+      [
+        "global_factory_alert_http"
+      ]
+    ]
+  },
+  {
+    "id": "global_factory_alert_http",
+    "type": "http request",
+    "z": "tab_glob",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 320,
+    "wires": [
+      [
+        "global_factory_alert_parse"
+      ]
+    ]
+  },
+  {
+    "id": "global_factory_alert_parse",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Parse Global Factory Alert",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet ca=0,ct=0,ei=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"CycleActif\") ca=v; if(n===\"CycleTermine\") ct=v; if(n===\"EtatInstallation\") ei=v;} msg.payload={EtatInstallation:ei,CycleActif:ca,CycleTermine:ct,AlerteCycleBloque:(ei===1&&ca===1&&ct===0)?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 320,
+    "wires": [
+      [
+        "global_factory_alert_debug"
+      ]
+    ]
+  },
+  {
+    "id": "global_factory_alert_debug",
+    "type": "debug",
+    "z": "tab_glob",
+    "name": "Global Factory Alert Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 320,
+    "wires": []
+  },
+  {
+    "id": "global_rail_alert_inject",
+    "type": "inject",
+    "z": "tab_glob",
+    "name": "Global Rail Alert",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 400,
+    "wires": [
+      [
+        "global_rail_alert_query"
+      ]
+    ]
+  },
+  {
+    "id": "global_rail_alert_query",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Build Global Rail Alert Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape4.Terminee\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 400,
+    "wires": [
+      [
+        "global_rail_alert_http"
+      ]
+    ]
+  },
+  {
+    "id": "global_rail_alert_http",
+    "type": "http request",
+    "z": "tab_glob",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 400,
+    "wires": [
+      [
+        "global_rail_alert_parse"
+      ]
+    ]
+  },
+  {
+    "id": "global_rail_alert_parse",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Parse Global Rail Alert",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet e1=0,e4=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"Etape1.Terminee\") e1=v; if(n===\"Etape4.Terminee\") e4=v;} msg.payload={Etape1:e1,Etape4:e4,AlerteRailBloque:(e1===1&&e4===0)?1:0}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 400,
+    "wires": [
+      [
+        "global_rail_alert_debug"
+      ]
+    ]
+  },
+  {
+    "id": "global_rail_alert_debug",
+    "type": "debug",
+    "z": "tab_glob",
+    "name": "Global Rail Alert Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 400,
+    "wires": []
+  },
+  {
+    "id": "global_score_inject",
+    "type": "inject",
+    "z": "tab_glob",
+    "name": "Global Score",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 480,
+    "wires": [
+      [
+        "global_score_query"
+      ]
+    ]
+  },
+  {
+    "id": "global_score_query",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Build Global Score Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) =>\\n      (r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\")) or\\n      (r._measurement == \"factory\" and (r.node == \"EtatInstallation\" or r.node == \"CycleTermine\")) or\\n      (r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n    )\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 480,
+    "wires": [
+      [
+        "global_score_http"
+      ]
+    ]
+  },
+  {
+    "id": "global_score_http",
+    "type": "http request",
+    "z": "tab_glob",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 480,
+    "wires": [
+      [
+        "global_score_parse"
+      ]
+    ]
+  },
+  {
+    "id": "global_score_parse",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Parse Global Score",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=0,tcp=0,ei=0,ct=0,railCount=0; for(const row of rows){const m=row[idxMsr],n=row[idxNode],v=parseFloat(row[idxValue]); if(m===\"powergrid\"&&n===\"TAP\") tap=v; if(m===\"powergrid\"&&n===\"TCP\") tcp=v; if(m===\"factory\"&&n===\"EtatInstallation\") ei=v; if(m===\"factory\"&&n===\"CycleTermine\") ct=v; if(m===\"railauto\"&&v===1) railCount++;} const energyScore=tap?Math.max(0,Math.min(40,((tap-tcp)/tap)*40+20)):0; const factoryScore=(ei*20)+(ct*15); const railScore=(railCount/4)*25; msg.payload={EnergyScore:energyScore,FactoryScore:factoryScore,RailScore:railScore,ScoreGlobal:energyScore+factoryScore+railScore}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 480,
+    "wires": [
+      [
+        "global_score_debug"
+      ]
+    ]
+  },
+  {
+    "id": "global_score_debug",
+    "type": "debug",
+    "z": "tab_glob",
+    "name": "Global Score Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 480,
+    "wires": []
+  },
+  {
+    "id": "global_overview_inject",
+    "type": "inject",
+    "z": "tab_glob",
+    "name": "Global Overview",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "x": 110,
+    "y": 560,
+    "wires": [
+      [
+        "global_overview_query"
+      ]
+    ]
+  },
+  {
+    "id": "global_overview_query",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Build Global Overview Query",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) =>\\n      (r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\" or r.node == \"PE.Power\" or r.node == \"FS.Power\" or r.node == \"GS.Power\")) or\\n      (r._measurement == \"factory\" and (r.node == \"EtatInstallation\" or r.node == \"CycleActif\" or r.node == \"CycleTermine\")) or\\n      (r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n    )\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 340,
+    "y": 560,
+    "wires": [
+      [
+        "global_overview_http"
+      ]
+    ]
+  },
+  {
+    "id": "global_overview_http",
+    "type": "http request",
+    "z": "tab_glob",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 560,
+    "wires": [
+      [
+        "global_overview_parse"
+      ]
+    ]
+  },
+  {
+    "id": "global_overview_parse",
+    "type": "function",
+    "z": "tab_glob",
+    "name": "Parse Global Overview",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=0,tcp=0,pe=0,fs=0,gs=0,ei=0,ca=0,ct=0,rail=0; for(const row of rows){const m=row[idxMsr],n=row[idxNode],v=parseFloat(row[idxValue]); if(m===\"powergrid\"&&n===\"TAP\") tap=v; if(m===\"powergrid\"&&n===\"TCP\") tcp=v; if(m===\"powergrid\"&&n===\"PE.Power\") pe=v; if(m===\"powergrid\"&&n===\"FS.Power\") fs=v; if(m===\"powergrid\"&&n===\"GS.Power\") gs=v; if(m===\"factory\"&&n===\"EtatInstallation\") ei=v; if(m===\"factory\"&&n===\"CycleActif\") ca=v; if(m===\"factory\"&&n===\"CycleTermine\") ct=v; if(m===\"railauto\"&&v===1) rail++;} msg.payload={powergrid:{tap, tcp, delta:tap-tcp, totalProduction:pe+fs+gs}, factory:{installationActive:ei, cycleActive:ca, cycleFinished:ct}, railauto:{completedSteps:rail, progressPct:rail*25}, status:(ei===1&&tap>=tcp)?\"stable\":\"degraded\"}; return msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 800,
+    "y": 560,
+    "wires": [
+      [
+        "global_overview_debug"
+      ]
+    ]
+  },
+  {
+    "id": "global_overview_debug",
+    "type": "debug",
+    "z": "tab_glob",
+    "name": "Global Overview Result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1030,
+    "y": 560,
+    "wires": []
+  },
+  {
+    "id": "api_powergrid_summary_in",
+    "type": "http in",
+    "z": "tab_api",
+    "name": "API PowerGrid Summary",
+    "url": "/api/powergrid/summary",
+    "method": "get",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 100,
+    "wires": [
+      [
+        "api_powergrid_summary_build"
+      ]
+    ]
+  },
+  {
+    "id": "api_powergrid_summary_build",
+    "type": "function",
+    "z": "tab_api",
+    "name": "Build API PowerGrid Summary",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) =>\\n      (r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\" or r.node == \"PE.Power\" or r.node == \"FS.Power\" or r.node == \"GS.Power\")) or\\n      (r._measurement == \"powergrid\" and r.plc == \"PLC1\" and (r.node == \"PE.Etat\" or r.node == \"FS.Etat\" or r.node == \"GS.Etat\"))\\n    )\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 350,
+    "y": 100,
+    "wires": [
+      [
+        "api_powergrid_summary_http"
+      ]
+    ]
+  },
+  {
+    "id": "api_powergrid_summary_http",
+    "type": "http request",
+    "z": "tab_api",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 100,
+    "wires": [
+      [
+        "api_powergrid_summary_parse"
+      ]
+    ]
+  },
+  {
+    "id": "api_powergrid_summary_parse",
+    "type": "function",
+    "z": "tab_api",
+    "name": "Parse API PowerGrid Summary",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=0,tcp=0,pe=0,fs=0,gs=0,peState=0,fsState=0,gsState=0; for(const row of rows){const n=row[idxNode],v=parseFloat(row[idxValue]); if(n===\"TAP\") tap=v; if(n===\"TCP\") tcp=v; if(n===\"PE.Power\") pe=v; if(n===\"FS.Power\") fs=v; if(n===\"GS.Power\") gs=v; if(n===\"PE.Etat\") peState=v; if(n===\"FS.Etat\") fsState=v; if(n===\"GS.Etat\") gsState=v;} const total=pe+fs+gs; msg.payload={tap, tcp, delta:tap-tcp, totalProduction:total, sourceMix:{windPct:total?pe/total*100:0, solarPct:total?fs/total*100:0, gasPct:total?gs/total*100:0}, sources:{wind:pe,solar:fs,gas:gs}, sourceStates:{wind:peState,solar:fsState,gas:gsState}, activeSources:[peState,fsState,gsState].filter(v=>v===1).length}; return msg;",
+    "outputs": 2,
+    "noerr": 0,
+    "x": 800,
+    "y": 100,
+    "wires": [
+      [
+        "api_powergrid_summary_resp",
+        "api_powergrid_summary_debug"
+      ]
+    ]
+  },
+  {
+    "id": "api_powergrid_summary_resp",
+    "type": "http response",
+    "z": "tab_api",
+    "name": "API PowerGrid Summary Response",
+    "statusCode": "",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "x": 1040,
+    "y": 80,
+    "wires": []
+  },
+  {
+    "id": "api_powergrid_summary_debug",
+    "type": "debug",
+    "z": "tab_api",
+    "name": "API PowerGrid Summary Debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1040,
+    "y": 120,
+    "wires": []
+  },
+  {
+    "id": "api_factory_summary_in",
+    "type": "http in",
+    "z": "tab_api",
+    "name": "API Factory Summary",
+    "url": "/api/factory/summary",
+    "method": "get",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 220,
+    "wires": [
+      [
+        "api_factory_summary_build"
+      ]
+    ]
+  },
+  {
+    "id": "api_factory_summary_build",
+    "type": "function",
+    "z": "tab_api",
+    "name": "Build API Factory Summary",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"factory\" and (r.node == \"EtatInstallation\" or r.node == \"EtatUsine\" or r.node == \"CycleActif\" or r.node == \"CycleTermine\" or r.node == \"RecyclageActif\" or r.node == \"Cuve1.NiveauBas\" or r.node == \"Cuve1.NiveauHaut\" or r.node == \"Cuve2.NiveauBas\" or r.node == \"Cuve2.NiveauHaut\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 350,
+    "y": 220,
+    "wires": [
+      [
+        "api_factory_summary_http"
+      ]
+    ]
+  },
+  {
+    "id": "api_factory_summary_http",
+    "type": "http request",
+    "z": "tab_api",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 220,
+    "wires": [
+      [
+        "api_factory_summary_parse"
+      ]
+    ]
+  },
+  {
+    "id": "api_factory_summary_parse",
+    "type": "function",
+    "z": "tab_api",
+    "name": "Parse API Factory Summary",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet out={EtatInstallation:0,EtatUsine:0,CycleActif:0,CycleTermine:0,RecyclageActif:0,\"Cuve1.NiveauBas\":0,\"Cuve1.NiveauHaut\":0,\"Cuve2.NiveauBas\":0,\"Cuve2.NiveauHaut\":0}; for(const row of rows){out[row[idxNode]]=parseFloat(row[idxValue]);} const score=(out.EtatInstallation*40)+(out.CycleActif*20)+(out.CycleTermine*30)+(out.RecyclageActif*10); msg.payload={installationActive:out.EtatInstallation,plantOperational:out.EtatUsine,cycleActive:out.CycleActif,cycleFinished:out.CycleTermine,recyclingActive:out.RecyclageActif,tanks:{tank1Low:out[\"Cuve1.NiveauBas\"],tank1High:out[\"Cuve1.NiveauHaut\"],tank2Low:out[\"Cuve2.NiveauBas\"],tank2High:out[\"Cuve2.NiveauHaut\"]},tankSummary:{fullCount:(out[\"Cuve1.NiveauHaut\"]===1?1:0)+(out[\"Cuve2.NiveauHaut\"]===1?1:0),lowCount:(out[\"Cuve1.NiveauBas\"]===1?1:0)+(out[\"Cuve2.NiveauBas\"]===1?1:0)},efficiencyScore:score}; return msg;",
+    "outputs": 2,
+    "noerr": 0,
+    "x": 800,
+    "y": 220,
+    "wires": [
+      [
+        "api_factory_summary_resp",
+        "api_factory_summary_debug"
+      ]
+    ]
+  },
+  {
+    "id": "api_factory_summary_resp",
+    "type": "http response",
+    "z": "tab_api",
+    "name": "API Factory Summary Response",
+    "statusCode": "",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "x": 1040,
+    "y": 200,
+    "wires": []
+  },
+  {
+    "id": "api_factory_summary_debug",
+    "type": "debug",
+    "z": "tab_api",
+    "name": "API Factory Summary Debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1040,
+    "y": 240,
+    "wires": []
+  },
+  {
+    "id": "api_railauto_summary_in",
+    "type": "http in",
+    "z": "tab_api",
+    "name": "API RailAuto Summary",
+    "url": "/api/railauto/summary",
+    "method": "get",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 340,
+    "wires": [
+      [
+        "api_railauto_summary_build"
+      ]
+    ]
+  },
+  {
+    "id": "api_railauto_summary_build",
+    "type": "function",
+    "z": "tab_api",
+    "name": "Build API RailAuto Summary",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) => r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 350,
+    "y": 340,
+    "wires": [
+      [
+        "api_railauto_summary_http"
+      ]
+    ]
+  },
+  {
+    "id": "api_railauto_summary_http",
+    "type": "http request",
+    "z": "tab_api",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 340,
+    "wires": [
+      [
+        "api_railauto_summary_parse"
+      ]
+    ]
+  },
+  {
+    "id": "api_railauto_summary_parse",
+    "type": "function",
+    "z": "tab_api",
+    "name": "Parse API RailAuto Summary",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet out={\"Etape1.Terminee\":0,\"Etape2.Terminee\":0,\"Etape3.Terminee\":0,\"Etape4.Terminee\":0}; for(const row of rows){out[row[idxNode]]=parseFloat(row[idxValue]);} const completed=out[\"Etape1.Terminee\"]+out[\"Etape2.Terminee\"]+out[\"Etape3.Terminee\"]+out[\"Etape4.Terminee\"]; msg.payload={step1:out[\"Etape1.Terminee\"],step2:out[\"Etape2.Terminee\"],step3:out[\"Etape3.Terminee\"],step4:out[\"Etape4.Terminee\"],completedSteps:completed,progress:completed*25,ratio:completed/4,blockRisk:(out[\"Etape1.Terminee\"]===1&&out[\"Etape4.Terminee\"]===0)?1:0,score:out[\"Etape1.Terminee\"]*10+out[\"Etape2.Terminee\"]*20+out[\"Etape3.Terminee\"]*30+out[\"Etape4.Terminee\"]*40}; return msg;",
+    "outputs": 2,
+    "noerr": 0,
+    "x": 800,
+    "y": 340,
+    "wires": [
+      [
+        "api_railauto_summary_resp",
+        "api_railauto_summary_debug"
+      ]
+    ]
+  },
+  {
+    "id": "api_railauto_summary_resp",
+    "type": "http response",
+    "z": "tab_api",
+    "name": "API RailAuto Summary Response",
+    "statusCode": "",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "x": 1040,
+    "y": 320,
+    "wires": []
+  },
+  {
+    "id": "api_railauto_summary_debug",
+    "type": "debug",
+    "z": "tab_api",
+    "name": "API RailAuto Summary Debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1040,
+    "y": 360,
+    "wires": []
+  },
+  {
+    "id": "api_overview_in",
+    "type": "http in",
+    "z": "tab_api",
+    "name": "API Overview",
+    "url": "/api/overview",
+    "method": "get",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 460,
+    "wires": [
+      [
+        "api_overview_build"
+      ]
+    ]
+  },
+  {
+    "id": "api_overview_build",
+    "type": "function",
+    "z": "tab_api",
+    "name": "Build API Overview",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) =>\\n      (r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\" or r.node == \"PE.Power\" or r.node == \"FS.Power\" or r.node == \"GS.Power\")) or\\n      (r._measurement == \"factory\" and (r.node == \"EtatInstallation\" or r.node == \"CycleActif\" or r.node == \"CycleTermine\")) or\\n      (r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape2.Terminee\" or r.node == \"Etape3.Terminee\" or r.node == \"Etape4.Terminee\"))\\n    )\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 350,
+    "y": 460,
+    "wires": [
+      [
+        "api_overview_http"
+      ]
+    ]
+  },
+  {
+    "id": "api_overview_http",
+    "type": "http request",
+    "z": "tab_api",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 460,
+    "wires": [
+      [
+        "api_overview_parse"
+      ]
+    ]
+  },
+  {
+    "id": "api_overview_parse",
+    "type": "function",
+    "z": "tab_api",
+    "name": "Parse API Overview",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=0,tcp=0,pe=0,fs=0,gs=0,ei=0,ca=0,ct=0,rail=0; for(const row of rows){const m=row[idxMsr],n=row[idxNode],v=parseFloat(row[idxValue]); if(m===\"powergrid\"&&n===\"TAP\") tap=v; if(m===\"powergrid\"&&n===\"TCP\") tcp=v; if(m===\"powergrid\"&&n===\"PE.Power\") pe=v; if(m===\"powergrid\"&&n===\"FS.Power\") fs=v; if(m===\"powergrid\"&&n===\"GS.Power\") gs=v; if(m===\"factory\"&&n===\"EtatInstallation\") ei=v; if(m===\"factory\"&&n===\"CycleActif\") ca=v; if(m===\"factory\"&&n===\"CycleTermine\") ct=v; if(m===\"railauto\"&&v===1) rail++;} const energyScore=tap?Math.max(0,Math.min(40,((tap-tcp)/tap)*40+20)):0; const factoryScore=(ei*20)+(ct*15); const railScore=(rail/4)*25; msg.payload={powergrid:{tap,tcp,delta:tap-tcp,totalProduction:pe+fs+gs},factory:{installationActive:ei,cycleActive:ca,cycleFinished:ct},railauto:{completedSteps:rail,progressPct:rail*25},scores:{energy:energyScore,factory:factoryScore,rail:railScore,global:energyScore+factoryScore+railScore},alerts:{deficit:tcp>tap?1:0,factoryBlocked:(ei===1&&ca===1&&ct===0)?1:0,railBlocked:(rail>0&&rail<4)?1:0},status:(ei===1&&tap>=tcp)?\"stable\":\"degraded\"}; return msg;",
+    "outputs": 2,
+    "noerr": 0,
+    "x": 800,
+    "y": 460,
+    "wires": [
+      [
+        "api_overview_resp",
+        "api_overview_debug"
+      ]
+    ]
+  },
+  {
+    "id": "api_overview_resp",
+    "type": "http response",
+    "z": "tab_api",
+    "name": "API Overview Response",
+    "statusCode": "",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "x": 1040,
+    "y": 440,
+    "wires": []
+  },
+  {
+    "id": "api_overview_debug",
+    "type": "debug",
+    "z": "tab_api",
+    "name": "API Overview Debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1040,
+    "y": 480,
+    "wires": []
+  },
+  {
+    "id": "api_alerts_in",
+    "type": "http in",
+    "z": "tab_api",
+    "name": "API Alerts",
+    "url": "/api/alerts",
+    "method": "get",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 580,
+    "wires": [
+      [
+        "api_alerts_build"
+      ]
+    ]
+  },
+  {
+    "id": "api_alerts_build",
+    "type": "function",
+    "z": "tab_api",
+    "name": "Build API Alerts",
+    "func": "msg.method = \"POST\";\nmsg.url = \"http://192.168.10.15:8086/api/v2/query?org=dataprotect\";\nmsg.headers = {\n    \"Authorization\": \"Token supersecrettoken\",\n    \"Content-Type\": \"application/vnd.flux\",\n    \"Accept\": \"application/csv\"\n};\nmsg.payload = `from(bucket: \"ot_telemetry\")\\n  |> range(start: -10m)\\n  |> filter(fn: (r) =>\\n      (r._measurement == \"powergrid\" and r.plc == \"PLC2\" and (r.node == \"TAP\" or r.node == \"TCP\")) or\\n      (r._measurement == \"factory\" and (r.node == \"EtatInstallation\" or r.node == \"CycleActif\" or r.node == \"CycleTermine\")) or\\n      (r._measurement == \"railauto\" and (r.node == \"Etape1.Terminee\" or r.node == \"Etape4.Terminee\"))\\n    )\\n  |> last()`;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 350,
+    "y": 580,
+    "wires": [
+      [
+        "api_alerts_http"
+      ]
+    ]
+  },
+  {
+    "id": "api_alerts_http",
+    "type": "http request",
+    "z": "tab_api",
+    "name": "Query Influx",
+    "method": "use",
+    "ret": "txt",
+    "paytoqs": "ignore",
+    "url": "",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 560,
+    "y": 580,
+    "wires": [
+      [
+        "api_alerts_parse"
+      ]
+    ]
+  },
+  {
+    "id": "api_alerts_parse",
+    "type": "function",
+    "z": "tab_api",
+    "name": "Parse API Alerts",
+    "func": "const lines = (msg.payload || \"\").split(\"\\n\").filter(l => l.trim() !== \"\" && !l.startsWith(\"#\"));\nif (lines.length < 2) {\n  msg.payload = { error: \"No data\", raw: msg.payload };\n  return msg;\n}\nconst header = lines[0].split(\",\");\nconst rows = lines.slice(1).map(line => line.split(\",\"));\nconst idxValue = header.indexOf(\"_value\");\nconst idxNode = header.indexOf(\"node\");\nconst idxPlc = header.indexOf(\"plc\");\nconst idxMsr = header.indexOf(\"_measurement\");\nlet tap=0,tcp=0,ei=0,ca=0,ct=0,e1=0,e4=0; for(const row of rows){const m=row[idxMsr],n=row[idxNode],v=parseFloat(row[idxValue]); if(m===\"powergrid\"&&n===\"TAP\") tap=v; if(m===\"powergrid\"&&n===\"TCP\") tcp=v; if(m===\"factory\"&&n===\"EtatInstallation\") ei=v; if(m===\"factory\"&&n===\"CycleActif\") ca=v; if(m===\"factory\"&&n===\"CycleTermine\") ct=v; if(m===\"railauto\"&&n===\"Etape1.Terminee\") e1=v; if(m===\"railauto\"&&n===\"Etape4.Terminee\") e4=v;} const alerts=[]; if(tcp>tap) alerts.push({code:\"ENERGY_DEFICIT\",severity:\"high\",message:\"Consumption exceeds production\"}); if(ei===1&&ca===1&&ct===0) alerts.push({code:\"FACTORY_CYCLE_BLOCKED\",severity:\"medium\",message:\"Factory cycle active but not finished\"}); if(e1===1&&e4===0) alerts.push({code:\"RAIL_PROCESS_STALLED\",severity:\"medium\",message:\"Rail process started but not completed\"}); msg.payload={count:alerts.length,alerts}; return msg;",
+    "outputs": 2,
+    "noerr": 0,
+    "x": 800,
+    "y": 580,
+    "wires": [
+      [
+        "api_alerts_resp",
+        "api_alerts_debug"
+      ]
+    ]
+  },
+  {
+    "id": "api_alerts_resp",
+    "type": "http response",
+    "z": "tab_api",
+    "name": "API Alerts Response",
+    "statusCode": "",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "x": 1040,
+    "y": 560,
+    "wires": []
+  },
+  {
+    "id": "api_alerts_debug",
+    "type": "debug",
+    "z": "tab_api",
+    "name": "API Alerts Debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1040,
+    "y": 600,
+    "wires": []
+  }
+]
