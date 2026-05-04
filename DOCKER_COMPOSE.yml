@@ -1,0 +1,11 @@
+# Add this to your docker-compose.yml services: section
+
+mes_frontend:
+  build:
+    context: ./mes
+    dockerfile: Dockerfile
+  container_name: mes_frontend
+  network_mode: none
+  restart: unless-stopped
+  ports:
+    - "8080:80"

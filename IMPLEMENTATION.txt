@@ -1,0 +1,67 @@
+SIMPLIFIED DEPLOYMENT - DOCKER SELF-CONTAINED
+
+=== WHAT'S READY ===
+
+Dockerfile:
+  - Clones https://github.com/Abdoun1m/dashboard-mes.git
+  - Builds React app with env vars
+  - Serves via Nginx with API proxy
+  - Self-contained, no external files needed
+
+nginx.conf:
+  - Proxies /api/* to localhost:1880 (Node-RED)
+  - Serves React SPA
+
+.env.production:
+  - VITE_API_BASE_URL=http://localhost:1880
+  - VITE_DISABLE_API=0
+
+=== DOCKER COMPOSE SETUP ===
+
+In your docker-compose.yml, add:
+
+mes_frontend:
+  build:
+    context: ./mes
+    dockerfile: Dockerfile
+  container_name: mes_frontend
+  network_mode: none
+  restart: unless-stopped
+  ports:
+    - "8080:80"
+
+OR copy from: DOCKER_COMPOSE.yml in this repo
+
+=== DEPLOY ===
+
+$ cd /docker-compose-root
+$ mkdir -p ./mes && cd ./mes
+$ git clone https://github.com/Abdoun1m/dashboard-mes.git .
+$ cd ..
+$ docker-compose build mes_frontend
+$ docker-compose up -d mes_frontend
+
+=== TEST ===
+
+$ curl http://localhost:8080/api/overview | jq .
+$ curl -I http://localhost:8080/dataprotect_mes_logo.png
+
+Browser: http://192.168.20.X:8080
+
+=== CLEANUP ===
+
+Remove unnecessary files manually:
+  - All .md files (documentation)
+  - All .txt files (except this one)
+  - merge_flows.js, merge_flows.py
+  - NODERED_FLOWS_*.json
+  - mes_70_precision_flows_FIXED_PROD.json
+
+Keep:
+  - Dockerfile (main)
+  - nginx.conf (proxy config)
+  - .env.production (env vars)
+  - .env.example (template)
+  - src/ (source code)
+  - public/ (images)
+  - All config files (package.json, tsconfig.json, vite.config.ts, etc.)
