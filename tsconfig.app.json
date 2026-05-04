@@ -16,5 +16,15 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["vite/client"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/pages/*Page.tsx",
+    "src/components/alerts/**",
+    "src/components/cards/**",
+    "src/components/status/**",
+    "src/mocks/**",
+    "src/services/mesService.ts",
+    "src/hooks/useLiveData.ts",
+    "src/hooks/useDataMode.ts"
+  ]
 }

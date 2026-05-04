@@ -1,41 +1,44 @@
-import { Bolt, Factory, LayoutDashboard, Siren, TramFront } from 'lucide-react';
+import { Activity, Bolt, Factory, LayoutDashboard, ListTree, Shield, TramFront } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const navItems = [
-  { to: '/overview', label: 'Vue globale', icon: LayoutDashboard },
-  { to: '/powergrid', label: 'Réseau électrique', icon: Bolt },
-  { to: '/factory', label: 'Usine', icon: Factory },
-  { to: '/railauto', label: 'RailAuto', icon: TramFront },
-  { to: '/alerts', label: 'Alertes', icon: Siren }
+  { to: '/overview', label: 'Overview', icon: LayoutDashboard },
+  { to: '/powergrid', label: 'PowerGrid', icon: Bolt },
+  { to: '/factory', label: 'Factory', icon: Factory },
+  { to: '/rail', label: 'Rail', icon: TramFront },
+  { to: '/security', label: 'Cyber-Physical Integrity', icon: Shield },
+  { to: '/pipeline', label: 'Pipeline Health', icon: Activity },
+  { to: '/raw', label: 'Raw Telemetry', icon: ListTree },
+  { to: '/catalog', label: 'API Catalog', icon: ListTree }
 ];
 
 export const Sidebar = () => (
-  <aside className="sticky top-0 hidden h-screen w-[260px] flex-col border-r border-zinc-200/70 bg-white/70 px-5 py-6 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/80 lg:flex">
-    <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-white p-4 dark:border-brand-900 dark:from-brand-900/30 dark:to-zinc-900">
+  <aside className="sticky top-0 hidden h-screen w-[270px] flex-col border-r border-zinc-200 bg-white px-5 py-6 dark:border-zinc-800 dark:bg-zinc-950 lg:flex">
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
       <p className="subtle-label">DataProtect MES</p>
-      <div className="mt-2 rounded-xl border border-brand-200 bg-white p-2 dark:hidden">
-  <img src="/dataprotect_mes_logo.png" alt="DataProtect MES" className="h-10 w-full rounded-lg object-contain" />
+      <div className="mt-3 rounded-md border border-zinc-200 bg-white p-2 dark:hidden">
+        <img src="/dataprotect_mes_logo.png" alt="DataProtect MES" className="h-9 w-full rounded-md object-contain" />
       </div>
-      <div className="mt-2 hidden rounded-xl border border-brand-700 bg-zinc-950 p-2 dark:block">
+      <div className="mt-3 hidden rounded-md border border-zinc-800 bg-zinc-950 p-2 dark:block">
         <img
           src="/dataprotect_mes_logo_dark.png"
           alt="DataProtect MES"
-          className="h-10 w-full rounded-lg object-contain"
+          className="h-9 w-full rounded-md object-contain"
         />
       </div>
     </div>
 
-    <nav className="mt-8 space-y-2">
+    <nav className="mt-6 space-y-1">
       {navItems.map((item) => {
         const Icon = item.icon;
         return (
           <NavLink
             key={item.to}
             to={item.to}
-            className={({ isActive }) =>
-              `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all ${
+            className={({ isActive }: { isActive: boolean }) =>
+              `flex items-center gap-3 rounded-md px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] transition-all ${
                 isActive
-                  ? 'bg-brand-600 text-white shadow-glow'
+                  ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950'
                   : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-white'
               }`
             }
@@ -47,8 +50,8 @@ export const Sidebar = () => (
       })}
     </nav>
 
-    <div className="mt-auto rounded-2xl bg-zinc-100 p-4 text-sm text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
-      Pont OT / DMZ / IT sécurisé
+    <div className="mt-auto rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-xs uppercase tracking-[0.12em] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+      OT · DMZ · IT Secure Bridge
     </div>
   </aside>
 );

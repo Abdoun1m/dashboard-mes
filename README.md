@@ -1,6 +1,6 @@
-# DataProtect MES Frontend (Phase 1: Mock-Only)
+# DataProtect MES Frontend (Operational UI)
 
-Interface frontend premium React + TypeScript + Vite pour **DataProtect MES**.
+Industrial OT/MES control-room interface built with React + TypeScript + Vite.
 
 ## Stack
 
@@ -8,9 +8,9 @@ Interface frontend premium React + TypeScript + Vite pour **DataProtect MES**.
 - Vite
 - Tailwind CSS
 - Recharts
-- Framer Motion
 - Lucide React
 - React Router
+- TanStack Query
 
 ## Structure
 
@@ -19,10 +19,9 @@ src/
   app/
   components/
     layout/
-    cards/
+    kpi/
     charts/
-    status/
-    alerts/
+    diagnostics/
   pages/
   hooks/
   services/
@@ -32,55 +31,32 @@ src/
   assets/
 ```
 
-## Lancer le projet
+## Run the project
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Phase 1 (courante)
+## Environment
 
-- Aucune intégration backend réelle
-- Toutes les données viennent de `src/mocks/*.mock.ts`
-- Rafraîchissement live simulé via polling frontend (`useLiveData` + jitter dans `mesService`)
+Copy `.env.example` and adjust if needed:
 
-## Phase 1.5 (courante maintenant)
+- `VITE_MES_API_BASE_URL` (default `http://192.168.20.10:1880`)
 
-- Couche data passée en **API-first** pour:
-  - `/api/powergrid/summary`
-  - `/api/factory/summary`
-  - `/api/railauto/summary`
-  - `/api/overview`
-- En cas d'échec API (timeout/non-200/réseau), fallback automatique vers mocks (UI inchangée).
-- `alerts` reste volontairement mock-only pour l'instant.
-- Polling, loading state et error state sont gérés dans les pages via `useLiveData`.
+Production Docker builds use `.env.production` with `VITE_MES_API_BASE_URL=/` so the UI calls the local Nginx `/api/` proxy.
 
-Variables d'environnement optionnelles:
+## Docker + Nginx
 
-- `VITE_API_BASE_URL` (ex: `http://localhost:1880`)
-- `VITE_DISABLE_API=1` pour forcer le mode mock
+The project ships with a `Dockerfile` and `nginx.conf` for the OT/MES gateway. The Nginx config proxies `/api/` to the Node-RED API.
 
-## Phase 2 (prévue): bascule Node-RED APIs
+## Notes
 
-Service prêt pour migration dans `src/services/mesService.ts`.
-
-### Endpoints cibles
-
-- `/api/powergrid/summary`
-- `/api/factory/summary`
-- `/api/railauto/summary`
-- `/api/overview`
-- `/api/alerts`
-
-### Stratégie de switch
-
-1. Remplacer la logique mock dans chaque fonction `get*()` par `fetch()`.
-2. Conserver les mêmes contrats TypeScript (`src/types/mes.ts`).
-3. Activer `VITE_DATA_MODE=api` pour passer en mode API.
-4. Garder les mêmes composants/pages (aucun changement UI majeur requis).
+- The UI consumes live API data directly.
+- If an endpoint is unavailable, panels show a degraded state.
+- TCP falls back to $TCP = FactoryDemand + HomesDemand + RailwayDemand + Losses$ when missing.
 
 ## Branding
 
-- Nom affiché: **DataProtect MES**
-- Placeholder logo déjà en place dans la sidebar et topbar
+- Display name: **DataProtect MES**
+- Logos are loaded from the public root

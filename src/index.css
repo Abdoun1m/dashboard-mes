@@ -16,7 +16,7 @@
   }
 
   body {
-    @apply m-0 min-h-screen bg-zinc-50 text-zinc-950 antialiased dark:bg-zincx-950 dark:text-zinc-100;
+    @apply m-0 min-h-screen bg-zinc-50 text-zinc-950 antialiased dark:bg-zinc-950 dark:text-zinc-100;
     font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   }
 
@@ -30,7 +30,7 @@
 
 @layer components {
   .glass-card {
-    @apply rounded-3xl border bg-white/85 p-5 shadow-soft backdrop-blur-md transition-all duration-300 dark:bg-zinc-900/70;
+    @apply rounded-xl border bg-white p-4 shadow-sm transition-all dark:bg-zinc-900;
   }
 
   .kpi-value {
@@ -39,5 +39,17 @@
 
   .subtle-label {
     @apply text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400;
+  }
+
+  .panel {
+    @apply rounded-lg border bg-white p-4 text-sm shadow-sm dark:bg-zinc-900;
+  }
+
+  .panel-title {
+    @apply text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400;
+  }
+
+  .panel-subtitle {
+    @apply text-xs text-zinc-500 dark:text-zinc-400;
   }
 }

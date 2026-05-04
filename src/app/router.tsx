@@ -1,12 +1,14 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
 import { RouteErrorBoundary } from '../components/layout/RouteErrorBoundary';
-import { AdminPage } from '../pages/AdminPage';
-import { AlertsPage } from '../pages/AlertsPage';
-import { FactoryPage } from '../pages/FactoryPage';
-import { OverviewPage } from '../pages/OverviewPage';
-import { PowerGridPage } from '../pages/PowerGridPage';
-import { RailAutoPage } from '../pages/RailAutoPage';
+import { ApiCatalogPage } from '../pages/ApiCatalog';
+import { FactoryPage } from '../pages/Factory';
+import { OverviewPage } from '../pages/Overview';
+import { PipelinePage } from '../pages/Pipeline';
+import { PowerGridPage } from '../pages/PowerGrid';
+import { RailPage } from '../pages/Rail';
+import { RawSnapshotPage } from '../pages/RawSnapshot';
+import { SecurityPage } from '../pages/Security';
 
 export const router = createBrowserRouter([
   {
@@ -18,9 +20,11 @@ export const router = createBrowserRouter([
       { path: 'overview', element: <OverviewPage /> },
       { path: 'powergrid', element: <PowerGridPage /> },
       { path: 'factory', element: <FactoryPage /> },
-      { path: 'railauto', element: <RailAutoPage /> },
-      { path: 'alerts', element: <AlertsPage /> },
-      { path: 'admin', element: <AdminPage /> }
+      { path: 'rail', element: <RailPage /> },
+      { path: 'security', element: <SecurityPage /> },
+      { path: 'pipeline', element: <PipelinePage /> },
+      { path: 'raw', element: <RawSnapshotPage /> },
+      { path: 'catalog', element: <ApiCatalogPage /> }
     ]
   }
 ]);
