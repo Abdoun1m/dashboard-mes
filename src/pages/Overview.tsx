@@ -24,7 +24,7 @@ const pickFrom = (source: Record<string, unknown> | null, keys: string[]): numbe
 };
 
 export const OverviewPage = () => {
-  const overview = useMesQuery<Record<string, unknown>>(['mes', 'overview'], '/api/mes/overview');
+  const overview = useMesQuery<Record<string, unknown>>(['mes', 'overview'], '/api/overview');
   const executive = useMesQuery<Record<string, unknown>>(['mes', 'executive'], '/api/mes/executive-score');
   const operational = useMesQuery<Record<string, unknown>>(['mes', 'operational'], '/api/mes/operational-score');
   const availability = useMesQuery<Record<string, unknown>>(['mes', 'availability'], '/api/mes/global-availability');

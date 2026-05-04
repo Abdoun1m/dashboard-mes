@@ -22,7 +22,7 @@ export const AppShell = () => {
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
       <div className="mx-auto flex max-w-[1880px]">
-        <Sidebar />
+        <Sidebar theme={theme} />
         <main className="min-h-screen flex-1 px-4 pb-6 pt-4 sm:px-6">
           <Topbar theme={theme} onToggleTheme={toggleTheme} pageTitle={pageTitle} />
           <section className="mb-4 mt-5">

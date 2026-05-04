@@ -1,173 +1,138 @@
 import { KpiCard } from '../components/kpi/KpiCard';
-import { StatusPill } from '../components/kpi/StatusPill';
 import { Gauge } from '../components/charts/Gauge';
-import { ThroughputChart } from '../components/charts/ThroughputChart';
-import { useMesQuery } from '../hooks/useMesQuery';
+import { useLiveData } from '../hooks/useLiveData';
+import { getRailSummary } from '../services/mesService';
 import { classifyStatus, formatAge, formatPct, safeNumber } from '../utils/format';
+import type { RailSummary } from '../types/mes';
 
 export const RailPage = () => {
-  const progress = useMesQuery<Record<string, unknown> | unknown[]>(['rail', 'progress'], '/api/rail/auto-progress');
-  const manualRoutes = useMesQuery<Record<string, unknown> | unknown[]>(['rail', 'manualRoutes'], '/api/rail/routes');
-  const conflicts = useMesQuery<Record<string, unknown> | unknown[]>(['rail', 'conflicts'], '/api/rail/conflicts');
-  const throughput = useMesQuery<Record<string, unknown> | unknown[]>(['rail', 'throughput'], '/api/rail/throughput');
-  const safetyScore = useMesQuery<Record<string, unknown>>(['rail', 'safety'], '/api/rail/safety-score');
-  const routingScore = useMesQuery<Record<string, unknown>>(['rail', 'routing'], '/api/rail/routing-score');
-  const globalFault = useMesQuery<Record<string, unknown>>(['rail', 'fault'], '/api/rail/global-fault');
-  const completion = useMesQuery<Record<string, unknown>>(['rail', 'completion'], '/api/rail/completion');
+  // Primary data source: /api/railauto/summary
+  const { data: summary, loading, error, lastUpdated } = useLiveData(getRailSummary, 2000);
 
-  const safetyValue = safeNumber(safetyScore.data?.score ?? safetyScore.data?.value) ?? null;
-  const routingValue = safeNumber(routingScore.data?.score ?? routingScore.data?.value) ?? null;
-  const faultValue = globalFault.data?.fault ?? globalFault.data?.status ?? null;
+  // Live values from summary
+  const progress = safeNumber(summary?.progress) ?? null;
+  const ratio = safeNumber(summary?.ratio) ?? null;
+  const blockRisk = safeNumber(summary?.blockRisk) ?? null;
+  const completedSteps = safeNumber(summary?.completedSteps) ?? 0;
 
-  const throughputSeries = Array.isArray(throughput.data)
-    ? throughput.data.map((point, index) => ({
-        timestamp: String((point as Record<string, unknown>).timestamp ?? index + 1),
-        value: safeNumber((point as Record<string, unknown>).value) ?? 0
-      }))
-    : [];
-
-  const progressRows = Array.isArray(progress.data) ? progress.data : (progress.data?.rows as Record<string, unknown>[] | undefined) ?? [];
-  const manualRows = Array.isArray(manualRoutes.data) ? manualRoutes.data : (manualRoutes.data?.rows as Record<string, unknown>[] | undefined) ?? [];
-  const conflictRows = Array.isArray(conflicts.data) ? conflicts.data : (conflicts.data?.rows as Record<string, unknown>[] | undefined) ?? [];
+  // Step indicators
+  const step1 = summary?.step1 ?? 0;
+  const step2 = summary?.step2 ?? 0;
+  const step3 = summary?.step3 ?? 0;
+  const step4 = summary?.step4 ?? 0;
 
   return (
     <div className="space-y-6">
+      {/* KPI Cards - Live from /api/railauto/summary */}
       <section className="grid gap-4 lg:grid-cols-4">
         <KpiCard
-          label="Safety score"
-          value={safetyValue !== null ? formatPct(safetyValue, 1) : '—'}
-          tone={classifyStatus(safetyValue)}
-          freshness={formatAge(safetyScore.lastUpdated)}
-          status={safetyScore.freshness}
-          helper="Interlocking safety"
+          label="Progress"
+          value={progress !== null ? `${formatPct(progress, 1)}` : '—'}
+          tone={classifyStatus(progress)}
+          freshness={formatAge(lastUpdated)}
+          status="ok"
+          helper="Route completion %"
         />
         <KpiCard
-          label="Routing score"
-          value={routingValue !== null ? formatPct(routingValue, 1) : '—'}
-          tone={classifyStatus(routingValue)}
-          freshness={formatAge(routingScore.lastUpdated)}
-          status={routingScore.freshness}
+          label="Efficiency Ratio"
+          value={ratio !== null ? ratio.toFixed(2) : '—'}
+          tone={ratio !== null && ratio > 0.7 ? 'ok' : 'warning'}
+          freshness={formatAge(lastUpdated)}
+          status="ok"
           helper="Route efficiency"
         />
         <KpiCard
-          label="Global fault"
-          value={faultValue ? 'ACTIVE' : 'CLEAR'}
-          tone={faultValue ? 'critical' : 'ok'}
-          freshness={formatAge(globalFault.lastUpdated)}
-          status={faultValue ? 'critical' : 'ok'}
-          helper="System fault latch"
+          label="Block Risk"
+          value={blockRisk !== null ? `${formatPct(blockRisk, 0)}` : '—'}
+          tone={blockRisk !== null && blockRisk > 50 ? 'critical' : blockRisk !== null && blockRisk > 30 ? 'warning' : 'ok'}
+          freshness={formatAge(lastUpdated)}
+          status="ok"
+          helper="Congestion risk"
         />
         <KpiCard
-          label="Completion"
-          value={safeNumber(completion.data?.count ?? completion.data?.value) ? String(completion.data?.count ?? completion.data?.value) : '—'}
+          label="Completed Steps"
+          value={String(completedSteps)}
           tone="info"
-          freshness={formatAge(completion.lastUpdated)}
-          status={completion.freshness}
-          helper="Completed routes"
+          freshness={formatAge(lastUpdated)}
+          status="ok"
+          helper="Steps completed"
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-        <div className="panel">
-          <p className="panel-title">Auto step progress timeline</p>
-          <div className="mt-3 overflow-auto">
-            <table className="w-full text-xs">
-              <thead className="text-left text-zinc-500 dark:text-zinc-400">
-                <tr>
-                  <th className="pb-2">Step</th>
-                  <th className="pb-2">State</th>
-                  <th className="pb-2">Progress</th>
-                </tr>
-              </thead>
-              <tbody>
-                {progressRows.length ? (
-                  progressRows.map((row, index) => (
-                    <tr key={index} className="border-t border-zinc-200/60 dark:border-zinc-800">
-                      <td className="py-2">{String((row as Record<string, unknown>).step ?? index + 1)}</td>
-                      <td className="py-2">{String((row as Record<string, unknown>).state ?? '—')}</td>
-                      <td className="py-2">{safeNumber((row as Record<string, unknown>).progress) ?? '—'}%</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="py-3 text-zinc-500" colSpan={3}>
-                      No auto progress data available.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div className="panel space-y-4">
-          <Gauge value={safetyValue ?? 0} label="Safety" unit="%" tone={classifyStatus(safetyValue)} />
-          <Gauge value={routingValue ?? 0} label="Routing" unit="%" tone={classifyStatus(routingValue)} />
-        </div>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-        <div className="panel">
-          <p className="panel-title">Manual route state matrix</p>
-          <div className="mt-3 overflow-auto">
-            <table className="w-full text-xs">
-              <thead className="text-left text-zinc-500 dark:text-zinc-400">
-                <tr>
-                  <th className="pb-2">Route</th>
-                  <th className="pb-2">State</th>
-                  <th className="pb-2">Direction</th>
-                </tr>
-              </thead>
-              <tbody>
-                {manualRows.length ? (
-                  manualRows.map((row, index) => (
-                    <tr key={index} className="border-t border-zinc-200/60 dark:border-zinc-800">
-                      <td className="py-2">{String((row as Record<string, unknown>).route ?? `R-${index + 1}`)}</td>
-                      <td className="py-2">{String((row as Record<string, unknown>).state ?? '—')}</td>
-                      <td className="py-2">{String((row as Record<string, unknown>).direction ?? '—')}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="py-3 text-zinc-500" colSpan={3}>
-                      No manual route states available.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div className="panel">
-          <p className="panel-title">Route conflicts</p>
-          <div className="mt-3 space-y-2 text-xs">
-            {conflictRows.length ? (
-              conflictRows.map((row, index) => (
-                <div key={index} className="flex items-center justify-between rounded-md border border-zinc-200/60 px-3 py-2 dark:border-zinc-800">
-                  <div>
-                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                      {String((row as Record<string, unknown>).route ?? (row as Record<string, unknown>).id ?? `Conflict ${index + 1}`)}
-                    </p>
-                    <p className="text-zinc-500 dark:text-zinc-400">
-                      {String((row as Record<string, unknown>).detail ?? (row as Record<string, unknown>).message ?? '—')}
-                    </p>
-                  </div>
-                  <StatusPill
-                    label="conflict"
-                    value={String((row as Record<string, unknown>).direction ?? 'route')}
-                    tone={(row as Record<string, unknown>).directionConflict ? 'critical' : 'warning'}
-                  />
-                </div>
-              ))
-            ) : (
-              <p className="text-zinc-500">No conflicts reported.</p>
-            )}
-          </div>
-        </div>
-      </section>
-
+      {/* Progress Section */}
       <section className="panel">
-        <p className="panel-title">Throughput</p>
-        <ThroughputChart data={throughputSeries} />
+        <p className="panel-title">Overall Progress (Live from /api/railauto/summary)</p>
+        <div className="mt-4 space-y-4">
+          <div>
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="font-medium">Progress: {progress !== null ? `${formatPct(progress, 1)}` : '—'}</span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">{completedSteps}/4 steps</span>
+            </div>
+            <div className="h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 transition-all duration-300"
+                style={{ width: `${Math.min(progress ?? 0, 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Step Indicators */}
+      <section className="panel">
+        <p className="panel-title">Route Steps (Live from /api/railauto/summary)</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-4 text-sm">
+          <div className={`rounded-md border-2 px-4 py-3 text-center ${step1 ? 'border-green-500 bg-green-50 dark:bg-green-950' : 'border-zinc-200 dark:border-zinc-800'}`}>
+            <p className="text-xs font-semibold">Step 1</p>
+            <p className="text-lg">{step1 ? '✓' : '○'}</p>
+          </div>
+          <div className={`rounded-md border-2 px-4 py-3 text-center ${step2 ? 'border-green-500 bg-green-50 dark:bg-green-950' : 'border-zinc-200 dark:border-zinc-800'}`}>
+            <p className="text-xs font-semibold">Step 2</p>
+            <p className="text-lg">{step2 ? '✓' : '○'}</p>
+          </div>
+          <div className={`rounded-md border-2 px-4 py-3 text-center ${step3 ? 'border-green-500 bg-green-50 dark:bg-green-950' : 'border-zinc-200 dark:border-zinc-800'}`}>
+            <p className="text-xs font-semibold">Step 3</p>
+            <p className="text-lg">{step3 ? '✓' : '○'}</p>
+          </div>
+          <div className={`rounded-md border-2 px-4 py-3 text-center ${step4 ? 'border-green-500 bg-green-50 dark:bg-green-950' : 'border-zinc-200 dark:border-zinc-800'}`}>
+            <p className="text-xs font-semibold">Step 4</p>
+            <p className="text-lg">{step4 ? '✓' : '○'}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Metrics Gauges */}
+      <section className="grid gap-4 xl:grid-cols-3">
+        {ratio !== null && (
+          <div className="panel flex justify-center items-center">
+            <Gauge value={(ratio * 100) || 0} label="Efficiency Ratio" unit="%" tone={ratio > 0.7 ? 'ok' : 'warning'} />
+          </div>
+        )}
+        {blockRisk !== null && (
+          <div className="panel flex justify-center items-center">
+            <Gauge value={blockRisk} label="Block Risk" unit="%" tone={blockRisk > 50 ? 'critical' : blockRisk > 30 ? 'warning' : 'ok'} />
+          </div>
+        )}
+        {progress !== null && (
+          <div className="panel flex justify-center items-center">
+            <Gauge value={progress} label="Progress" unit="%" tone={classifyStatus(progress)} />
+          </div>
+        )}
+      </section>
+
+      {/* System Status */}
+      <section className="panel">
+        <p className="panel-title">System Status (Live from /api/railauto/summary)</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
+          <div className="rounded-md border border-zinc-200/60 px-4 py-3 dark:border-zinc-800">
+            <p className="text-zinc-500 dark:text-zinc-400">Efficiency Ratio</p>
+            <p className="text-lg font-semibold">{ratio !== null ? ratio.toFixed(3) : '—'}</p>
+          </div>
+          <div className="rounded-md border border-zinc-200/60 px-4 py-3 dark:border-zinc-800">
+            <p className="text-zinc-500 dark:text-zinc-400">Block Risk</p>
+            <p className="text-lg font-semibold">{blockRisk !== null ? `${blockRisk.toFixed(1)}%` : '—'}</p>
+          </div>
+        </div>
       </section>
     </div>
   );

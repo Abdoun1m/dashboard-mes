@@ -1,6 +1,10 @@
 import { Activity, Bolt, Factory, LayoutDashboard, ListTree, Shield, TramFront } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
+interface SidebarProps {
+  theme: 'light' | 'dark';
+}
+
 const navItems = [
   { to: '/overview', label: 'Overview', icon: LayoutDashboard },
   { to: '/powergrid', label: 'PowerGrid', icon: Bolt },
@@ -12,21 +16,23 @@ const navItems = [
   { to: '/catalog', label: 'API Catalog', icon: ListTree }
 ];
 
-export const Sidebar = () => (
+export const Sidebar = ({ theme }: SidebarProps) => (
   <aside className="sticky top-0 hidden h-screen w-[270px] flex-col border-r border-zinc-200 bg-white px-5 py-6 dark:border-zinc-800 dark:bg-zinc-950 lg:flex">
     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
       <p className="subtle-label">DataProtect MES</p>
-      <div className="mt-3 rounded-md border border-zinc-200 bg-white p-2 dark:hidden">
-        <img src="/dataprotect_mes_logo.png" alt="DataProtect MES" className="h-9 w-full rounded-md object-contain" />
-      </div>
-      <div className="mt-3 hidden rounded-md border border-zinc-800 bg-zinc-950 p-2 dark:block">
-        <img
-          src="/dataprotect_mes_logo_dark.png"
-          alt="DataProtect MES"
-          className="h-9 w-full rounded-md object-contain"
-        />
-      </div>
-    </div>
+      {theme === 'light' ? (
+        <div className="mt-3 rounded-md border border-zinc-200 bg-white p-2">
+          <img src="/dataprotect_mes_logo.png" alt="DataProtect MES" className="h-9 w-full rounded-md object-contain" />
+        </div>
+      ) : (
+        <div className="mt-3 rounded-md border border-zinc-800 bg-zinc-950 p-2">
+          <img
+            src="/dataprotect_mes_logo_dark.png"
+            alt="DataProtect MES"
+            className="h-9 w-full rounded-md object-contain"
+          />
+        </div>
+      )}
 
     <nav className="mt-6 space-y-1">
       {navItems.map((item) => {
