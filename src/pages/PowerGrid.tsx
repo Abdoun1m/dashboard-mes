@@ -1,4 +1,5 @@
 import { KpiCard } from '../components/kpi/KpiCard';
+import { Badge } from '../components/ui/badge';
 import { StatusPill } from '../components/kpi/StatusPill';
 import { Gauge } from '../components/charts/Gauge';
 import { GenerationStackedBar } from '../components/charts/GenerationStackedBar';
@@ -85,9 +86,18 @@ export const PowerGridPage = () => {
   const anomalyRows = Array.isArray(anomalies.data) ? anomalies.data : (anomalies.data?.rows as Record<string, unknown>[] | undefined) ?? [];
 
   const blackoutRiskValue = pickFromObject(blackout.data, ['risk', 'value', 'score']) ?? 0;
+  
+  const hasError = overview.isError || production.isError || consumption.isError || sourceMix.isError || 
+    losses.isError || reserve.isError || served.isError || blackout.isError || energyScore.isError || anomalies.isError;
 
   return (
     <div className="space-y-6">
+      {hasError && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <Badge variant="warning" className="mb-2">Données dégradées</Badge>
+          <p className="text-xs text-amber-700 dark:text-amber-400">Certaines données du réseau électrique sont indisponibles - seules les informations accessibles sont affichées.</p>
+        </div>
+      )}
       <section className="grid gap-4 lg:grid-cols-3">
         <KpiCard
           label="TAP"

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Badge } from '../components/ui/badge';
 import { AlertList } from '../components/alerts/AlertList';
 import { useLiveData } from '../hooks/useLiveData';
 import { getAlerts } from '../services/mesService';
@@ -15,7 +16,7 @@ const severityLabel: Record<AlertItem['severity'] | 'all', string> = {
 };
 
 export const AlertsPage = () => {
-  const { data, loading, error } = useLiveData(getAlerts, 7000);
+  const { data, loading, error, isFallback } = useLiveData(getAlerts, 7000);
   const [severityFilter, setSeverityFilter] = useState<AlertItem['severity'] | 'all'>('all');
 
   const alerts = useMemo(() => {
@@ -34,6 +35,13 @@ export const AlertsPage = () => {
 
   return (
     <div className="space-y-5">
+      {isFallback && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <Badge variant="warning" className="mb-2">Données estimées</Badge>
+          <p className="text-xs text-amber-700 dark:text-amber-400">Les données affichées proviennent du fallback - l'API en temps réel est actuellement indisponible.</p>
+        </div>
+      )}
+
       <section className="glass-card">
         <p className="subtle-label">Filtres visuels</p>
         <div className="mt-4 flex flex-wrap gap-2">

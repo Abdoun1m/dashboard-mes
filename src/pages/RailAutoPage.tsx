@@ -1,4 +1,5 @@
 import { Gauge, ShieldX } from 'lucide-react';
+import { Badge } from '../components/ui/badge';
 import { MetricCard } from '../components/cards/MetricCard';
 import { ScoreCard } from '../components/cards/ScoreCard';
 import { RailStepper } from '../components/status/RailStepper';
@@ -7,7 +8,7 @@ import { getRailSummary } from '../services/mesService';
 import { pct } from '../utils/format';
 
 export const RailAutoPage = () => {
-  const { data, loading, error } = useLiveData(getRailSummary, 6500);
+  const { data, loading, error, isFallback } = useLiveData(getRailSummary, 6500);
 
   if (loading && !data) return <div className="glass-card text-sm text-zinc-500 dark:text-zinc-400">Chargement du process RailAuto...</div>;
   if (error && !data) {
@@ -43,6 +44,13 @@ export const RailAutoPage = () => {
 
   return (
     <div className="space-y-6">
+      {isFallback && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <Badge variant="warning" className="mb-2">Données estimées</Badge>
+          <p className="text-xs text-amber-700 dark:text-amber-400">Les données affichées proviennent du fallback - l'API en temps réel est actuellement indisponible.</p>
+        </div>
+      )}
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Étapes terminées" value={`${data.completedSteps}/4`} tone="brand" />
         <MetricCard label="Progression" value={pct(data.progress)} />

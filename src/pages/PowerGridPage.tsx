@@ -1,4 +1,5 @@
 import { BadgeCheck, CircleDashed, Waves } from 'lucide-react';
+import { Badge } from '../components/ui/badge';
 import { MetricCard } from '../components/cards/MetricCard';
 import { ScoreCard } from '../components/cards/ScoreCard';
 import { SourceMixChart } from '../components/charts/SourceMixChart';
@@ -9,7 +10,7 @@ import { getPowerGridSummary } from '../services/mesService';
 import { num, pct } from '../utils/format';
 
 export const PowerGridPage = () => {
-  const { data, loading, error } = useLiveData(getPowerGridSummary, 6000);
+  const { data, loading, error, isFallback } = useLiveData(getPowerGridSummary, 6000);
 
   if (loading && !data) return <div className="glass-card text-sm text-zinc-500 dark:text-zinc-400">Chargement du résumé réseau...</div>;
   if (error && !data) {
@@ -27,6 +28,13 @@ export const PowerGridPage = () => {
 
   return (
     <div className="space-y-6">
+      {isFallback && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <Badge variant="warning" className="mb-2">Données estimées</Badge>
+          <p className="text-xs text-amber-700 dark:text-amber-400">Les données affichées proviennent du fallback - l'API en temps réel est actuellement indisponible.</p>
+        </div>
+      )}
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
     <MetricCard label="Production totale (TAP)" value={`${num(data.tap)} MW`} icon={Waves} tone="brand" />
     <MetricCard label="Consommation totale (TCP)" value={`${num(data.tcp)} MW`} icon={CircleDashed} />

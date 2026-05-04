@@ -5,6 +5,7 @@ interface LiveState<T> {
   loading: boolean;
   error: string | null;
   lastUpdated: Date | null;
+  isFallback: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -13,6 +14,7 @@ export const useLiveData = <T>(loader: () => Promise<T>, refreshMs = 6000): Live
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isFallback, setIsFallback] = useState<boolean>(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -20,8 +22,11 @@ export const useLiveData = <T>(loader: () => Promise<T>, refreshMs = 6000): Live
       const next = await loader();
       setData(next);
       setLastUpdated(new Date());
+      // Check if data has fallback flag
+      setIsFallback((next as any)?._isFallback ?? false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      setIsFallback(true);
     } finally {
       setLoading(false);
     }
@@ -35,5 +40,5 @@ export const useLiveData = <T>(loader: () => Promise<T>, refreshMs = 6000): Live
     return () => window.clearInterval(interval);
   }, [refresh, refreshMs]);
 
-  return { data, loading, error, lastUpdated, refresh };
+  return { data, loading, error, lastUpdated, isFallback, refresh };
 };

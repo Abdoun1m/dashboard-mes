@@ -1,4 +1,5 @@
 import { KpiCard } from '../components/kpi/KpiCard';
+import { Badge } from '../components/ui/badge';
 import { Gauge } from '../components/charts/Gauge';
 import { getFactorySummary } from '../services/mesService';
 import { useLiveData } from '../hooks/useLiveData';
@@ -6,7 +7,7 @@ import { classifyStatus, formatAge, formatPct, safeNumber } from '../utils/forma
 
 export const FactoryPage = () => {
   // Primary data source: /api/factory/summary
-  const { data: summary, loading, error, lastUpdated } = useLiveData(getFactorySummary, 2000);
+  const { data: summary, loading, error, lastUpdated, isFallback } = useLiveData(getFactorySummary, 2000);
   const lastUpdatedTs = lastUpdated ? lastUpdated.getTime() : null;
 
   // Live status values
@@ -31,6 +32,13 @@ export const FactoryPage = () => {
 
   return (
     <div className="space-y-6">
+      {isFallback && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <Badge variant="warning" className="mb-2">Données estimées</Badge>
+          <p className="text-xs text-amber-700 dark:text-amber-400">Les données affichées proviennent du fallback - l'API en temps réel est actuellement indisponible.</p>
+        </div>
+      )}
+
       {/* KPI Cards - Live from /api/factory/summary */}
       <section className="grid gap-4 lg:grid-cols-4">
         <KpiCard

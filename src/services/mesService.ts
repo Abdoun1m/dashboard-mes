@@ -99,14 +99,21 @@ const wait = async (delay = LATENCY_MS): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, delay));
 };
 
-const jitter = (value: number, spread: number): number => value + (Math.random() - 0.5) * spread;
-
 const clone = <T>(payload: T): T => structuredClone(payload);
 
 const buildUrl = (path: string): string => {
   const base = API_BASE_URL.replace(/\/$/, '');
   return `${base}${path}`;
 };
+
+interface FallbackContext {
+  wasFallback: boolean;
+  reason?: string;
+}
+
+const fallbackContext: FallbackContext = { wasFallback: false };
+
+export const getLastFallbackReason = (): FallbackContext => ({ ...fallbackContext });
 
 const probeEndpoint = async (path: string): Promise<ApiEndpointHealth> => {
   const checkedAt = new Date().toISOString();
@@ -213,83 +220,140 @@ const fetchJsonWithTimeout = async <T>(path: string): Promise<T> => {
 const withFallback = async <T>(
   path: string,
   fallback: () => T,
-  postProcess?: (payload: T) => T
-): Promise<T> => {
+  postProcess?: (payload: T, isFallback: boolean) => T
+): Promise<{ data: T; isFallback: boolean }> => {
   const mode = getDataSourceMode();
   if (mode === 'mock') {
     const mockPayload = fallback();
-    return postProcess ? postProcess(mockPayload) : mockPayload;
+    fallbackContext.wasFallback = true;
+    fallbackContext.reason = 'Mock mode enabled by user';
+    return { data: postProcess ? postProcess(mockPayload, true) : mockPayload, isFallback: true };
   }
 
   if (!API_ENABLED_BY_ENV) {
     const mockPayload = fallback();
-    return postProcess ? postProcess(mockPayload) : mockPayload;
+    fallbackContext.wasFallback = true;
+    fallbackContext.reason = 'API disabled by environment (VITE_DISABLE_API=1)';
+    return { data: postProcess ? postProcess(mockPayload, true) : mockPayload, isFallback: true };
   }
 
   try {
     const payload = await fetchJsonWithTimeout<T>(path);
-    return postProcess ? postProcess(payload) : payload;
+    fallbackContext.wasFallback = false;
+    fallbackContext.reason = undefined;
+    return { data: postProcess ? postProcess(payload, false) : payload, isFallback: false };
   } catch (error) {
     console.warn(`[DataProtect MES] API ${path} unavailable, fallback to mocks.`, error);
     const mockPayload = fallback();
-    return postProcess ? postProcess(mockPayload) : mockPayload;
+    fallbackContext.wasFallback = true;
+    fallbackContext.reason = error instanceof Error ? error.message : 'API unreachable';
+    return { data: postProcess ? postProcess(mockPayload, true) : mockPayload, isFallback: true };
   }
 };
 
 export const getOverview = async (): Promise<OverviewPayload> => {
   await wait();
-  return withFallback('/api/overview', () => clone(overviewMock), (payload) => {
-    payload.scores = payload.scores ?? { energy: 0, factory: 0, rail: 0, global: 0 };
-    payload.railauto = payload.railauto ?? { completedSteps: 0, progressPct: 0 };
-    payload.powergrid = payload.powergrid ?? { tap: 0, tcp: 0, delta: 0, totalProduction: 0 };
-
-    payload.scores.global = clamp(Math.round(jitter(Number(payload.scores.global ?? 0), 4)), 65, 99);
-    payload.railauto.progressPct = clamp(Math.round(jitter(Number(payload.railauto.progressPct ?? 0), 6)), 52, 100);
-    payload.powergrid.delta = Number(jitter(Number(payload.powergrid.delta ?? 0), 12).toFixed(1));
-    return payload;
-  });
+  const { data, isFallback } = await withFallback(
+    '/api/overview',
+    () => clone(overviewMock),
+    (payload, isFallback) => {
+      // Ensure required fields exist, but never replace valid values
+      payload.scores = payload.scores ?? { energy: 0, factory: 0, rail: 0, global: 0 };
+      payload.railauto = payload.railauto ?? { completedSteps: 0, progressPct: 0 };
+      payload.powergrid = payload.powergrid ?? { tap: 0, tcp: 0, delta: 0, totalProduction: 0 };
+      
+      // If fallback, add flag to indicate estimated data
+      if (isFallback) {
+        (payload as any)._isFallback = true;
+      }
+      return payload;
+    }
+  );
+  return data;
 };
 
 export const getPowerGridSummary = async (): Promise<PowerGridSummary> => {
   await wait();
-  return withFallback('/api/powergrid/summary', () => clone(powerGridMock), (payload) => {
-    payload.tap = Number(jitter(Number(payload.tap ?? 0), 16).toFixed(1));
-    payload.tcp = Number(jitter(Number(payload.tcp ?? 0), 15).toFixed(1));
-    payload.delta = Number((Number(payload.tap ?? 0) - Number(payload.tcp ?? 0)).toFixed(1));
-    payload.totalProduction = Number(jitter(Number(payload.totalProduction ?? 0), 18).toFixed(1));
-    return payload;
-  });
+  const { data, isFallback } = await withFallback(
+    '/api/powergrid/summary',
+    () => clone(powerGridMock),
+    (payload, isFallback) => {
+      // Only ensure delta is computed if both tap and tcp are present
+      if (payload.delta === undefined && payload.tap !== undefined && payload.tcp !== undefined) {
+        payload.delta = Number((Number(payload.tap) - Number(payload.tcp)).toFixed(1));
+      }
+      
+      // If fallback, add flag to indicate estimated data
+      if (isFallback) {
+        (payload as any)._isFallback = true;
+      }
+      return payload;
+    }
+  );
+  return data;
 };
 
 export const getFactorySummary = async (): Promise<FactorySummary> => {
   await wait();
-  return withFallback('/api/factory/summary', () => clone(factoryMock), (payload) => {
-    payload.tanks = payload.tanks ?? { tank1Low: 0, tank1High: 0, tank2Low: 0, tank2High: 0 };
-    payload.efficiencyScore = clamp(Math.round(jitter(Number(payload.efficiencyScore ?? 0), 5)), 61, 99);
-    payload.tanks.tank1Low = clamp(Math.round(jitter(Number(payload.tanks.tank1Low ?? 0), 8)), 5, 95);
-    payload.tanks.tank2Low = clamp(Math.round(jitter(Number(payload.tanks.tank2Low ?? 0), 8)), 5, 95);
-    payload.tanks.tank1High = 100 - Number(payload.tanks.tank1Low ?? 0);
-    payload.tanks.tank2High = 100 - Number(payload.tanks.tank2Low ?? 0);
-    return payload;
-  });
+  const { data, isFallback } = await withFallback(
+    '/api/factory/summary',
+    () => clone(factoryMock),
+    (payload, isFallback) => {
+      // Ensure required fields exist
+      payload.tanks = payload.tanks ?? { tank1Low: 0, tank1High: 0, tank2Low: 0, tank2High: 0 };
+      
+      // If fallback, add flag to indicate estimated data
+      if (isFallback) {
+        (payload as any)._isFallback = true;
+      }
+      return payload;
+    }
+  );
+  return data;
 };
 
 export const getRailSummary = async (): Promise<RailSummary> => {
   await wait();
-  return withFallback('/api/railauto/summary', () => clone(railAutoMock), (payload) => {
-    payload.progress = clamp(Math.round(jitter(Number(payload.progress ?? 0), 10)), 35, 100);
-    payload.ratio = Number(clamp(jitter(Number(payload.ratio ?? 0), 0.08), 0.55, 1).toFixed(2));
-    payload.blockRisk = clamp(Math.round(jitter(Number(payload.blockRisk ?? 0), 12)), 0, 85);
-    payload.completedSteps = clamp(Math.round((Number(payload.progress ?? 0) / 100) * 4), 0, 4);
-    payload.step1 = 1;
-    payload.step2 = Number(payload.completedSteps ?? 0) >= 2 ? 1 : 0;
-    payload.step3 = Number(payload.completedSteps ?? 0) >= 3 ? 1 : 0;
-    payload.step4 = Number(payload.completedSteps ?? 0) >= 4 ? 1 : 0;
-    return payload;
-  });
+  const { data, isFallback } = await withFallback(
+    '/api/railauto/summary',
+    () => clone(railAutoMock),
+    (payload, isFallback) => {
+      // Compute derived fields from API data
+      // completedSteps is derived from progress percentage
+      if (payload.progress !== undefined) {
+        payload.completedSteps = clamp(Math.round((Number(payload.progress) / 100) * 4), 0, 4);
+      } else {
+        payload.completedSteps = payload.completedSteps ?? 0;
+      }
+      
+      // Compute step indicators based on completedSteps
+      payload.step1 = 1;
+      payload.step2 = (payload.completedSteps ?? 0) >= 2 ? 1 : 0;
+      payload.step3 = (payload.completedSteps ?? 0) >= 3 ? 1 : 0;
+      payload.step4 = (payload.completedSteps ?? 0) >= 4 ? 1 : 0;
+      
+      // If fallback, add flag to indicate estimated data
+      if (isFallback) {
+        (payload as any)._isFallback = true;
+      }
+      return payload;
+    }
+  );
+  return data;
 };
 
 export const getAlerts = async (): Promise<AlertsPayload> => {
   await wait(180);
-  return withFallback('/api/alerts', () => clone(alertsMock));
+  const { data, isFallback } = await withFallback(
+    '/api/alerts',
+    () => clone(alertsMock),
+    (payload, isFallback) => {
+      // If fallback, add flag to indicate estimated data
+      if (isFallback) {
+        (payload as any)._isFallback = true;
+      }
+      return payload;
+    }
+  );
+  return data;
 };

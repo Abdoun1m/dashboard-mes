@@ -1,4 +1,5 @@
 import { KpiCard } from '../components/kpi/KpiCard';
+import { Badge } from '../components/ui/badge';
 import { StatusPill } from '../components/kpi/StatusPill';
 import { ApiDiagnosticsPanel } from '../components/diagnostics/ApiDiagnosticsPanel';
 import { useMesQuery } from '../hooks/useMesQuery';
@@ -51,9 +52,18 @@ export const OverviewPage = () => {
     '—';
 
   const alertItems = alerts.data?.alerts ?? [];
+  
+  const hasError = overview.isError || executive.isError || operational.isError || availability.isError || 
+    risk.isError || actions.isError || timeline.isError || alerts.isError;
 
   return (
     <div className="space-y-6">
+      {hasError && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <Badge variant="warning" className="mb-2">Données dégradées</Badge>
+          <p className="text-xs text-amber-700 dark:text-amber-400">Certaines données d'aperçu sont indisponibles - seules les informations accessibles sont affichées.</p>
+        </div>
+      )}
       <section className="grid gap-4 lg:grid-cols-4">
         <KpiCard
           label="Executive score"

@@ -1,4 +1,5 @@
 import { Activity, Gauge, ShieldAlert, Zap } from 'lucide-react';
+import { Badge } from '../components/ui/badge';
 import { AlertList } from '../components/alerts/AlertList';
 import { LiveAlertCenter } from '../components/alerts/LiveAlertCenter';
 import { MetricCard } from '../components/cards/MetricCard';
@@ -28,6 +29,13 @@ export const OverviewPage = () => {
 
   return (
     <div className="space-y-6">
+      {overview.isFallback && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <Badge variant="warning" className="mb-2">Données estimées</Badge>
+          <p className="text-xs text-amber-700 dark:text-amber-400">Les données affichées proviennent du fallback - l'API en temps réel est actuellement indisponible.</p>
+        </div>
+      )}
+      
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
     <MetricCard label="Statut global" value={data.status} icon={ShieldAlert} tone="brand" hint="Liaison OT/DMZ/IT" />
     <MetricCard label="Activité globale" value={`${data.factory.cycleActive} cycles actifs`} icon={Activity} tone="neutral" hint="Flux synthétique temps réel" />

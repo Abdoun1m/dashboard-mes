@@ -1,4 +1,5 @@
 import { Recycle, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { Badge } from '../components/ui/badge';
 import { MetricCard } from '../components/cards/MetricCard';
 import { ScoreCard } from '../components/cards/ScoreCard';
 import { TankLevelCard } from '../components/status/TankLevelCard';
@@ -6,7 +7,7 @@ import { useLiveData } from '../hooks/useLiveData';
 import { getFactorySummary } from '../services/mesService';
 
 export const FactoryPage = () => {
-  const { data, loading, error } = useLiveData(getFactorySummary, 6500);
+  const { data, loading, error, isFallback } = useLiveData(getFactorySummary, 6500);
 
   if (loading && !data) return <div className="glass-card text-sm text-zinc-500 dark:text-zinc-400">Chargement des métriques usine...</div>;
   if (error && !data) {
@@ -20,6 +21,13 @@ export const FactoryPage = () => {
 
   return (
     <div className="space-y-6">
+      {isFallback && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <Badge variant="warning" className="mb-2">Données estimées</Badge>
+          <p className="text-xs text-amber-700 dark:text-amber-400">Les données affichées proviennent du fallback - l'API en temps réel est actuellement indisponible.</p>
+        </div>
+      )}
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Installations actives" value={`${data.installationActive}`} tone="brand" />
         <MetricCard label="Usine opérationnelle" value={data.plantOperational ? 'ON' : 'OFF'} hint="État opérationnel" />

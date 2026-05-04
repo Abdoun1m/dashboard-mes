@@ -1,3 +1,4 @@
+import { Badge } from '../components/ui/badge';
 import { DIAGNOSTIC_ENDPOINTS, MES_API_BASE_URL } from '../api/mesClient';
 import { useMesQuery } from '../hooks/useMesQuery';
 
@@ -7,9 +8,17 @@ export const ApiCatalogPage = () => {
 
   const docsItems = Array.isArray(docs.data) ? docs.data : (docs.data?.endpoints as Record<string, unknown>[] | undefined) ?? [];
   const catalogItems = Array.isArray(catalog.data) ? catalog.data : (catalog.data?.kpis as Record<string, unknown>[] | undefined) ?? [];
+  
+  const hasError = docs.isError || catalog.isError;
 
   return (
     <div className="space-y-6">
+      {hasError && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <Badge variant="warning" className="mb-2">Données dégradées</Badge>
+          <p className="text-xs text-amber-700 dark:text-amber-400">Le catalogue d'API ou la documentation est indisponible.</p>
+        </div>
+      )}
       <section className="panel">
         <p className="panel-title">API base URL</p>
         <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">{MES_API_BASE_URL}</p>
