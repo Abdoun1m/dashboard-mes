@@ -3,11 +3,11 @@ import { Gauge } from '../components/charts/Gauge';
 import { getFactorySummary } from '../services/mesService';
 import { useLiveData } from '../hooks/useLiveData';
 import { classifyStatus, formatAge, formatPct, safeNumber } from '../utils/format';
-import type { FactorySummary } from '../types/mes';
 
 export const FactoryPage = () => {
   // Primary data source: /api/factory/summary
   const { data: summary, loading, error, lastUpdated } = useLiveData(getFactorySummary, 2000);
+  const lastUpdatedTs = lastUpdated ? lastUpdated.getTime() : null;
 
   // Live status values
   const installationActive = summary?.installationActive ?? 0;
@@ -37,7 +37,7 @@ export const FactoryPage = () => {
           label="Installation Active"
           value={installationActive ? 'ACTIVE' : 'INACTIVE'}
           tone={installationActive ? 'ok' : 'warning'}
-          freshness={formatAge(lastUpdated)}
+          freshness={formatAge(lastUpdatedTs)}
           status="ok"
           helper="Plant running"
         />
@@ -45,7 +45,7 @@ export const FactoryPage = () => {
           label="Plant Operational"
           value={plantOperational ? 'YES' : 'NO'}
           tone={plantOperational ? 'ok' : 'warning'}
-          freshness={formatAge(lastUpdated)}
+          freshness={formatAge(lastUpdatedTs)}
           status="ok"
           helper="Operational state"
         />
@@ -53,7 +53,7 @@ export const FactoryPage = () => {
           label="Efficiency Score"
           value={efficiencyScore !== null ? formatPct(efficiencyScore, 1) : '—'}
           tone={classifyStatus(efficiencyScore)}
-          freshness={formatAge(lastUpdated)}
+          freshness={formatAge(lastUpdatedTs)}
           status="ok"
           helper="Process efficiency"
         />
@@ -61,7 +61,7 @@ export const FactoryPage = () => {
           label="Active Cycles"
           value={String(cycleActive)}
           tone="info"
-          freshness={formatAge(lastUpdated)}
+          freshness={formatAge(lastUpdatedTs)}
           status="ok"
           helper="Running cycles"
         />

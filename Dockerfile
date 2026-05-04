@@ -1,6 +1,6 @@
 # ============================================================================
 # DataProtect MES Dashboard
-# Builds React/Vite frontend from GitHub and serves it with Nginx
+# Builds React/Vite frontend from local source and serves it with Nginx
 # ============================================================================
 
 # ============================================================================
@@ -8,15 +8,12 @@
 # ============================================================================
 FROM node:20-alpine AS builder
 
-WORKDIR /build
+WORKDIR /app
 
-RUN apk add --no-cache git
-
-# Clone frontend
-RUN git clone https://github.com/Abdoun1m/dashboard-mes.git .
-
-# Install dependencies
+# Use local repository source (no runtime git clone)
+COPY package*.json ./
 RUN npm install
+COPY . .
 
 # Build-time environment variables for Vite
 # IMPORTANT:
@@ -33,7 +30,7 @@ RUN npm run build
 # ============================================================================
 FROM nginx:alpine
 
-COPY --from=builder /build/dist /usr/share/nginx/html
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy local nginx.conf from the mes folder, not from GitHub repo
 COPY nginx.conf /etc/nginx/conf.d/default.conf

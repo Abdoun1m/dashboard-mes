@@ -75,6 +75,18 @@ export interface RawTelemetryRow {
 
 // Summary endpoint types (primary data sources for dashboard pages)
 
+export interface FactoryTanks {
+  tank1Low?: number;
+  tank1High?: number;
+  tank2Low?: number;
+  tank2High?: number;
+}
+
+export interface FactoryTankSummary {
+  fullCount?: number;
+  lowCount?: number;
+}
+
 export interface FactorySummary {
   installationActive?: number | boolean;
   plantOperational?: number | boolean;
@@ -82,16 +94,8 @@ export interface FactorySummary {
   cycleFinished?: number;
   recyclingActive?: number | boolean;
   efficiencyScore?: number;
-  tanks?: {
-    tank1Low?: number;
-    tank1High?: number;
-    tank2Low?: number;
-    tank2High?: number;
-  };
-  tankSummary?: {
-    fullCount?: number;
-    lowCount?: number;
-  };
+  tanks?: FactoryTanks;
+  tankSummary?: FactoryTankSummary;
   generatedAt?: string;
   sourceUpdatedAt?: string;
   pointCount?: number;
@@ -106,9 +110,46 @@ export interface RailSummary {
   step2?: number | boolean;
   step3?: number | boolean;
   step4?: number | boolean;
+  score?: number;
   generatedAt?: string;
   sourceUpdatedAt?: string;
   pointCount?: number;
+}
+
+export interface PowerGridSourceMix {
+  PE?: number;
+  FS?: number;
+  GS?: number;
+  pe?: number;
+  fs?: number;
+  gs?: number;
+  windPct?: number;
+  solarPct?: number;
+  gasPct?: number;
+  [key: string]: number | undefined;
+}
+
+export interface PowerGridGeneration {
+  PE?: number;
+  FS?: number;
+  GS?: number;
+  pe?: number;
+  fs?: number;
+  gs?: number;
+  [key: string]: number | undefined;
+}
+
+export interface PowerGridSources {
+  PE?: number;
+  FS?: number;
+  GS?: number;
+  pe?: number;
+  fs?: number;
+  gs?: number;
+  wind?: number;
+  solar?: number;
+  gas?: number;
+  [key: string]: number | undefined;
 }
 
 export interface PowerGridSummary {
@@ -118,21 +159,42 @@ export interface PowerGridSummary {
   balanceStatus?: string;
   totalProduction?: number;
   totalConsumption?: number;
-  sourceMix?: Record<string, number>;
-  generation?: { pe?: number; fs?: number; gs?: number };
+  sourceMix?: PowerGridSourceMix;
+  generation?: PowerGridGeneration;
   losses?: number;
   reserve?: number;
   servedStatus?: Array<Record<string, unknown>>;
   anomalySummary?: Array<Record<string, unknown>>;
+  sources?: PowerGridSources;
+  sourceStates?: PowerGridSources;
+  activeSources?: number;
   generatedAt?: string;
   sourceUpdatedAt?: string;
   pointCount?: number;
 }
 
 export interface OverviewPayload {
-  powergrid?: Record<string, unknown>;
-  factory?: Record<string, unknown>;
-  railauto?: Record<string, unknown>;
+  powergrid?: {
+    tap?: number;
+    tcp?: number;
+    delta?: number;
+    totalProduction?: number;
+    totalConsumption?: number;
+    [key: string]: unknown;
+  };
+  factory?: {
+    installationActive?: number | boolean;
+    plantOperational?: number | boolean;
+    cycleActive?: number;
+    cycleFinished?: number;
+    [key: string]: unknown;
+  };
+  railauto?: {
+    completedSteps?: number;
+    progressPct?: number;
+    progress?: number;
+    [key: string]: unknown;
+  };
   scores?: {
     energy?: number;
     factory?: number;
@@ -153,6 +215,9 @@ export interface OverviewPayload {
 export interface AlertsPayload {
   active?: MesAlert[];
   recent?: MesAlert[];
+  alerts?: MesAlert[];
+  count?: number;
+  alertCount?: number;
   generatedAt?: string;
   sourceUpdatedAt?: string;
   pointCount?: number;

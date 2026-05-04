@@ -3,11 +3,11 @@ import { Gauge } from '../components/charts/Gauge';
 import { useLiveData } from '../hooks/useLiveData';
 import { getRailSummary } from '../services/mesService';
 import { classifyStatus, formatAge, formatPct, safeNumber } from '../utils/format';
-import type { RailSummary } from '../types/mes';
 
 export const RailPage = () => {
   // Primary data source: /api/railauto/summary
   const { data: summary, loading, error, lastUpdated } = useLiveData(getRailSummary, 2000);
+  const lastUpdatedTs = lastUpdated ? lastUpdated.getTime() : null;
 
   // Live values from summary
   const progress = safeNumber(summary?.progress) ?? null;
@@ -29,7 +29,7 @@ export const RailPage = () => {
           label="Progress"
           value={progress !== null ? `${formatPct(progress, 1)}` : '—'}
           tone={classifyStatus(progress)}
-          freshness={formatAge(lastUpdated)}
+          freshness={formatAge(lastUpdatedTs)}
           status="ok"
           helper="Route completion %"
         />
@@ -37,7 +37,7 @@ export const RailPage = () => {
           label="Efficiency Ratio"
           value={ratio !== null ? ratio.toFixed(2) : '—'}
           tone={ratio !== null && ratio > 0.7 ? 'ok' : 'warning'}
-          freshness={formatAge(lastUpdated)}
+          freshness={formatAge(lastUpdatedTs)}
           status="ok"
           helper="Route efficiency"
         />
@@ -45,7 +45,7 @@ export const RailPage = () => {
           label="Block Risk"
           value={blockRisk !== null ? `${formatPct(blockRisk, 0)}` : '—'}
           tone={blockRisk !== null && blockRisk > 50 ? 'critical' : blockRisk !== null && blockRisk > 30 ? 'warning' : 'ok'}
-          freshness={formatAge(lastUpdated)}
+          freshness={formatAge(lastUpdatedTs)}
           status="ok"
           helper="Congestion risk"
         />
@@ -53,7 +53,7 @@ export const RailPage = () => {
           label="Completed Steps"
           value={String(completedSteps)}
           tone="info"
-          freshness={formatAge(lastUpdated)}
+          freshness={formatAge(lastUpdatedTs)}
           status="ok"
           helper="Steps completed"
         />
