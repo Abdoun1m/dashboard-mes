@@ -15,6 +15,7 @@ export const FactoryPage = () => {
   const plantOperational = summary?.plantOperational ?? 0;
   const cycleActive = summary?.cycleActive ?? 0;
   const cycleFinished = summary?.cycleFinished ?? 0;
+  const totalCycles = summary?.totalCycles ?? summary?.cycleCount ?? 0;
   const recyclingActive = summary?.recyclingActive ?? 0;
   const efficiencyScore = safeNumber(summary?.efficiencyScore) ?? null;
 
@@ -66,12 +67,12 @@ export const FactoryPage = () => {
           helper="Process efficiency"
         />
         <KpiCard
-          label="Active Cycles"
-          value={String(cycleActive)}
+          label="Total Cycles"
+          value={String(totalCycles)}
           tone="info"
           freshness={formatAge(lastUpdatedTs)}
           status="ok"
-          helper="Running cycles"
+          helper="Cycles completed"
         />
       </section>
 
@@ -97,14 +98,18 @@ export const FactoryPage = () => {
       {/* Cycle Status */}
       <section className="panel">
         <p className="panel-title">Cycle Status (Live from /api/factory/summary)</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
+        <div className="mt-4 grid gap-3 sm:grid-cols-3 text-sm">
           <div className="rounded-md border border-zinc-200/60 px-4 py-3 dark:border-zinc-800">
-            <p className="text-zinc-500 dark:text-zinc-400">Active Cycles</p>
-            <p className="text-lg font-semibold">{cycleActive}</p>
+            <p className="text-zinc-500 dark:text-zinc-400">Active State</p>
+            <p className="text-lg font-semibold">{cycleActive ? 'ACTIVE' : 'IDLE'}</p>
           </div>
           <div className="rounded-md border border-zinc-200/60 px-4 py-3 dark:border-zinc-800">
-            <p className="text-zinc-500 dark:text-zinc-400">Finished Cycles</p>
-            <p className="text-lg font-semibold">{cycleFinished}</p>
+            <p className="text-zinc-500 dark:text-zinc-400">Finished State</p>
+            <p className="text-lg font-semibold">{cycleFinished ? 'DONE' : 'WAITING'}</p>
+          </div>
+          <div className="rounded-md border border-zinc-200/60 px-4 py-3 dark:border-zinc-800">
+            <p className="text-zinc-500 dark:text-zinc-400">Total Cycles</p>
+            <p className="text-lg font-semibold">{totalCycles}</p>
           </div>
         </div>
       </section>

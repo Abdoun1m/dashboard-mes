@@ -8,13 +8,16 @@ export const overviewMock: OverviewPayload = {
     totalProduction: 1289.4
   },
   factory: {
-    installationActive: 9,
-    cycleActive: 14,
-    cycleFinished: 236
+    installationActive: 1,
+    plantOperational: 1,
+    cycleActive: 1,
+    cycleFinished: 1,
+    totalCycles: 236
   },
   railauto: {
     completedSteps: 3,
-    progressPct: 77
+    progressPct: 77,
+    progress: 77
   },
   scores: {
     energy: 91,
@@ -27,5 +30,8 @@ export const overviewMock: OverviewPayload = {
     factoryBlocked: 0,
     railBlocked: 1
   },
-  status: 'Opérationnel avec contraintes mineures'
+  status: 'Opérationnel avec contraintes mineures',
+  generatedAt: new Date().toISOString(),
+  sourceUpdatedAt: new Date().toISOString(),
+  pointCount: 128
 };

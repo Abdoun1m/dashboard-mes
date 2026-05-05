@@ -49,3 +49,10 @@ export const safeNumber = (value: unknown): number | null => {
   const parsed = typeof value === 'string' ? Number(value) : NaN;
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+export const safePercentage = (value: unknown, defaultValue: number | null = null): number | null => {
+  const num = safeNumber(value);
+  if (num === null) return defaultValue;
+  if (num < 0 || num > 100) return defaultValue;
+  return num;
+};

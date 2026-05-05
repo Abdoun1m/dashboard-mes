@@ -20,5 +20,8 @@ export const powerGridMock: PowerGridSummary = {
     solar: 1,
     gas: 1
   },
-  activeSources: 3
+  activeSources: 3,
+  generatedAt: new Date().toISOString(),
+  sourceUpdatedAt: new Date().toISOString(),
+  pointCount: 53
 };

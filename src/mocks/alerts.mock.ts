@@ -23,5 +23,8 @@ export const alertsMock: AlertsPayload = {
       severity: 'info',
       message: 'Heartbeat de sécurité synchronisé via le pont OT/DMZ/IT.'
     }
-  ]
+  ],
+  generatedAt: new Date().toISOString(),
+  sourceUpdatedAt: new Date().toISOString(),
+  pointCount: 4
 };

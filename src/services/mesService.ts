@@ -10,7 +10,7 @@ import type {
     PowerGridSummary,
     RailSummary
 } from '../types/mes';
-import { clamp } from '../utils/format';
+import { clamp, safePercentage } from '../utils/format';
 
 const LATENCY_MS = 220;
 const HTTP_TIMEOUT_MS = 2600;
@@ -283,9 +283,23 @@ export const getPowerGridSummary = async (): Promise<PowerGridSummary> => {
         payload.delta = Number((Number(payload.tap) - Number(payload.tcp)).toFixed(1));
       }
       
-      // If fallback, add flag to indicate estimated data
+      // Validate percentage fields
+      if (payload.sourceMix) {
+        const mix = payload.sourceMix;
+        if (mix.PE !== undefined) mix.PE = safePercentage(mix.PE, undefined);
+        if (mix.FS !== undefined) mix.FS = safePercentage(mix.FS, undefined);
+        if (mix.GS !== undefined) mix.GS = safePercentage(mix.GS, undefined);
+        if (mix.pe !== undefined) mix.pe = safePercentage(mix.pe, undefined);
+        if (mix.fs !== undefined) mix.fs = safePercentage(mix.fs, undefined);
+        if (mix.gs !== undefined) mix.gs = safePercentage(mix.gs, undefined);
+        if (mix.windPct !== undefined) mix.windPct = safePercentage(mix.windPct, undefined);
+        if (mix.solarPct !== undefined) mix.solarPct = safePercentage(mix.solarPct, undefined);
+        if (mix.gasPct !== undefined) mix.gasPct = safePercentage(mix.gasPct, undefined);
+      }
+      
+      // Preserve metadata flags
       if (isFallback) {
-        (payload as any)._isFallback = true;
+        payload.fallback = true;
       }
       return payload;
     }
@@ -302,9 +316,26 @@ export const getFactorySummary = async (): Promise<FactorySummary> => {
       // Ensure required fields exist
       payload.tanks = payload.tanks ?? { tank1Low: 0, tank1High: 0, tank2Low: 0, tank2High: 0 };
       
-      // If fallback, add flag to indicate estimated data
+      // Validate percentage fields: tank levels and efficiencyScore
+      if (payload.tanks.tank1Low !== undefined) {
+        payload.tanks.tank1Low = safePercentage(payload.tanks.tank1Low, 0);
+      }
+      if (payload.tanks.tank1High !== undefined) {
+        payload.tanks.tank1High = safePercentage(payload.tanks.tank1High, 0);
+      }
+      if (payload.tanks.tank2Low !== undefined) {
+        payload.tanks.tank2Low = safePercentage(payload.tanks.tank2Low, 0);
+      }
+      if (payload.tanks.tank2High !== undefined) {
+        payload.tanks.tank2High = safePercentage(payload.tanks.tank2High, 0);
+      }
+      if (payload.efficiencyScore !== undefined) {
+        payload.efficiencyScore = safePercentage(payload.efficiencyScore, 0);
+      }
+      
+      // Preserve metadata flags
       if (isFallback) {
-        (payload as any)._isFallback = true;
+        payload.fallback = true;
       }
       return payload;
     }
@@ -318,9 +349,14 @@ export const getRailSummary = async (): Promise<RailSummary> => {
     '/api/railauto/summary',
     () => clone(railAutoMock),
     (payload, isFallback) => {
+      // Validate progress percentage
+      if (payload.progress !== undefined) {
+        payload.progress = safePercentage(payload.progress, 0);
+      }
+      
       // Compute derived fields from API data
       // completedSteps is derived from progress percentage
-      if (payload.progress !== undefined) {
+      if (payload.progress !== undefined && payload.progress !== null) {
         payload.completedSteps = clamp(Math.round((Number(payload.progress) / 100) * 4), 0, 4);
       } else {
         payload.completedSteps = payload.completedSteps ?? 0;
@@ -332,9 +368,9 @@ export const getRailSummary = async (): Promise<RailSummary> => {
       payload.step3 = (payload.completedSteps ?? 0) >= 3 ? 1 : 0;
       payload.step4 = (payload.completedSteps ?? 0) >= 4 ? 1 : 0;
       
-      // If fallback, add flag to indicate estimated data
+      // Preserve metadata flags
       if (isFallback) {
-        (payload as any)._isFallback = true;
+        payload.fallback = true;
       }
       return payload;
     }
@@ -348,9 +384,9 @@ export const getAlerts = async (): Promise<AlertsPayload> => {
     '/api/alerts',
     () => clone(alertsMock),
     (payload, isFallback) => {
-      // If fallback, add flag to indicate estimated data
+      // Preserve metadata flags
       if (isFallback) {
-        (payload as any)._isFallback = true;
+        payload.fallback = true;
       }
       return payload;
     }

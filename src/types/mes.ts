@@ -1,5 +1,14 @@
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
+// API metadata shared across all summary endpoints
+export interface ApiMetadata {
+  generatedAt?: string;
+  sourceUpdatedAt?: string;
+  source?: string;
+  fallback?: boolean;
+  pointCount?: number;
+}
+
 export interface MesAlert {
   id?: string | number;
   code?: string;
@@ -87,21 +96,20 @@ export interface FactoryTankSummary {
   lowCount?: number;
 }
 
-export interface FactorySummary {
+export interface FactorySummary extends ApiMetadata {
   installationActive?: number | boolean;
   plantOperational?: number | boolean;
-  cycleActive?: number;
-  cycleFinished?: number;
+  cycleActive?: number | boolean;
+  cycleFinished?: number | boolean;
+  totalCycles?: number;
+  cycleCount?: number;
   recyclingActive?: number | boolean;
   efficiencyScore?: number;
   tanks?: FactoryTanks;
   tankSummary?: FactoryTankSummary;
-  generatedAt?: string;
-  sourceUpdatedAt?: string;
-  pointCount?: number;
 }
 
-export interface RailSummary {
+export interface RailSummary extends ApiMetadata {
   progress?: number;
   ratio?: number;
   blockRisk?: number;
@@ -111,9 +119,6 @@ export interface RailSummary {
   step3?: number | boolean;
   step4?: number | boolean;
   score?: number;
-  generatedAt?: string;
-  sourceUpdatedAt?: string;
-  pointCount?: number;
 }
 
 export interface PowerGridSourceMix {
@@ -152,7 +157,7 @@ export interface PowerGridSources {
   [key: string]: number | undefined;
 }
 
-export interface PowerGridSummary {
+export interface PowerGridSummary extends ApiMetadata {
   tap?: number;
   tcp?: number;
   delta?: number;
@@ -168,9 +173,6 @@ export interface PowerGridSummary {
   sources?: PowerGridSources;
   sourceStates?: PowerGridSources;
   activeSources?: number;
-  generatedAt?: string;
-  sourceUpdatedAt?: string;
-  pointCount?: number;
 }
 
 export interface OverviewPayload {
@@ -185,8 +187,10 @@ export interface OverviewPayload {
   factory?: {
     installationActive?: number | boolean;
     plantOperational?: number | boolean;
-    cycleActive?: number;
-    cycleFinished?: number;
+    cycleActive?: number | boolean;
+    cycleFinished?: number | boolean;
+    totalCycles?: number;
+    cycleCount?: number;
     [key: string]: unknown;
   };
   railauto?: {
@@ -209,18 +213,17 @@ export interface OverviewPayload {
   status?: string;
   generatedAt?: string;
   sourceUpdatedAt?: string;
+  source?: string;
+  fallback?: boolean;
   pointCount?: number;
 }
 
-export interface AlertsPayload {
+export interface AlertsPayload extends ApiMetadata {
   active?: MesAlert[];
   recent?: MesAlert[];
   alerts?: MesAlert[];
   count?: number;
   alertCount?: number;
-  generatedAt?: string;
-  sourceUpdatedAt?: string;
-  pointCount?: number;
 }
 
 export type AlertItem = MesAlert;

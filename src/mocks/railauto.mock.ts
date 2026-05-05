@@ -9,5 +9,8 @@ export const railAutoMock: RailSummary = {
   progress: 77,
   ratio: 0.91,
   blockRisk: 21,
-  score: 79
+  score: 79,
+  generatedAt: new Date().toISOString(),
+  sourceUpdatedAt: new Date().toISOString(),
+  pointCount: 28
 };

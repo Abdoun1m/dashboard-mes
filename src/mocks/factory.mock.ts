@@ -1,10 +1,11 @@
 import type { FactorySummary } from '../types/mes';
 
 export const factoryMock: FactorySummary = {
-  installationActive: 9,
+  installationActive: 1,
   plantOperational: 1,
-  cycleActive: 14,
-  cycleFinished: 236,
+  cycleActive: 1,
+  cycleFinished: 1,
+  totalCycles: 236,
   recyclingActive: 1,
   tanks: {
     tank1Low: 18,
@@ -16,5 +17,8 @@ export const factoryMock: FactorySummary = {
     fullCount: 6,
     lowCount: 2
   },
-  efficiencyScore: 88
+  efficiencyScore: 88,
+  generatedAt: new Date().toISOString(),
+  sourceUpdatedAt: new Date().toISOString(),
+  pointCount: 47
 };
