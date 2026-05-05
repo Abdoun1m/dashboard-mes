@@ -50,7 +50,7 @@ export const safeNumber = (value: unknown): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-export const safePercentage = (value: unknown, defaultValue: number | null = null): number | null => {
+export const safePercentage = (value: unknown, defaultValue: number | undefined = undefined): number | undefined => {
   const num = safeNumber(value);
   if (num === null) return defaultValue;
   if (num < 0 || num > 100) return defaultValue;

@@ -286,15 +286,15 @@ export const getPowerGridSummary = async (): Promise<PowerGridSummary> => {
       // Validate percentage fields
       if (payload.sourceMix) {
         const mix = payload.sourceMix;
-        if (mix.PE !== undefined) mix.PE = safePercentage(mix.PE, undefined);
-        if (mix.FS !== undefined) mix.FS = safePercentage(mix.FS, undefined);
-        if (mix.GS !== undefined) mix.GS = safePercentage(mix.GS, undefined);
-        if (mix.pe !== undefined) mix.pe = safePercentage(mix.pe, undefined);
-        if (mix.fs !== undefined) mix.fs = safePercentage(mix.fs, undefined);
-        if (mix.gs !== undefined) mix.gs = safePercentage(mix.gs, undefined);
-        if (mix.windPct !== undefined) mix.windPct = safePercentage(mix.windPct, undefined);
-        if (mix.solarPct !== undefined) mix.solarPct = safePercentage(mix.solarPct, undefined);
-        if (mix.gasPct !== undefined) mix.gasPct = safePercentage(mix.gasPct, undefined);
+        if (mix.PE !== undefined) mix.PE = safePercentage(mix.PE);
+        if (mix.FS !== undefined) mix.FS = safePercentage(mix.FS);
+        if (mix.GS !== undefined) mix.GS = safePercentage(mix.GS);
+        if (mix.pe !== undefined) mix.pe = safePercentage(mix.pe);
+        if (mix.fs !== undefined) mix.fs = safePercentage(mix.fs);
+        if (mix.gs !== undefined) mix.gs = safePercentage(mix.gs);
+        if (mix.windPct !== undefined) mix.windPct = safePercentage(mix.windPct);
+        if (mix.solarPct !== undefined) mix.solarPct = safePercentage(mix.solarPct);
+        if (mix.gasPct !== undefined) mix.gasPct = safePercentage(mix.gasPct);
       }
       
       // Preserve metadata flags
@@ -318,19 +318,19 @@ export const getFactorySummary = async (): Promise<FactorySummary> => {
       
       // Validate percentage fields: tank levels and efficiencyScore
       if (payload.tanks.tank1Low !== undefined) {
-        payload.tanks.tank1Low = safePercentage(payload.tanks.tank1Low, 0);
+        payload.tanks.tank1Low = safePercentage(payload.tanks.tank1Low);
       }
       if (payload.tanks.tank1High !== undefined) {
-        payload.tanks.tank1High = safePercentage(payload.tanks.tank1High, 0);
+        payload.tanks.tank1High = safePercentage(payload.tanks.tank1High);
       }
       if (payload.tanks.tank2Low !== undefined) {
-        payload.tanks.tank2Low = safePercentage(payload.tanks.tank2Low, 0);
+        payload.tanks.tank2Low = safePercentage(payload.tanks.tank2Low);
       }
       if (payload.tanks.tank2High !== undefined) {
-        payload.tanks.tank2High = safePercentage(payload.tanks.tank2High, 0);
+        payload.tanks.tank2High = safePercentage(payload.tanks.tank2High);
       }
       if (payload.efficiencyScore !== undefined) {
-        payload.efficiencyScore = safePercentage(payload.efficiencyScore, 0);
+        payload.efficiencyScore = safePercentage(payload.efficiencyScore);
       }
       
       // Preserve metadata flags
@@ -351,7 +351,7 @@ export const getRailSummary = async (): Promise<RailSummary> => {
     (payload, isFallback) => {
       // Validate progress percentage
       if (payload.progress !== undefined) {
-        payload.progress = safePercentage(payload.progress, 0);
+        payload.progress = safePercentage(payload.progress);
       }
       
       // Compute derived fields from API data
