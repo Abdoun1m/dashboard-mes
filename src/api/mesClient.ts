@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = 'http://192.168.20.10:1880';
+const DEFAULT_BASE_URL = '';
 const REQUEST_TIMEOUT_MS = 2600;
 
 export const MES_API_BASE_URL = (import.meta.env.VITE_MES_API_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '');
