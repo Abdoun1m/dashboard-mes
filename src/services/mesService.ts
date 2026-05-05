@@ -4,13 +4,21 @@ import { overviewMock } from '../mocks/overview.mock';
 import { powerGridMock } from '../mocks/powergrid.mock';
 import { railAutoMock } from '../mocks/railauto.mock';
 import type {
-    AlertsPayload,
-    FactorySummary,
-    OverviewPayload,
-    PowerGridSummary,
-    RailSummary
+  AlertsPayload,
+  ApiMetadata,
+  FactorySummary,
+  HistoryBalancePoint,
+  HistoryDemandPoint,
+  HistoryQapPoint,
+  HistorySourceMixPoint,
+  HistoryThroughputPoint,
+  HistoryUptimePoint,
+  HistoryValuePoint,
+  OverviewPayload,
+  PowerGridSummary,
+  RailSummary
 } from '../types/mes';
-import { clamp, safePercentage } from '../utils/format';
+import { safeNumber, safePercentage } from '../utils/format';
 
 const LATENCY_MS = 220;
 const HTTP_TIMEOUT_MS = 2600;
@@ -22,9 +30,9 @@ const API_HEALTH_TIMEOUT_MS = 2000;
 
 export const MES_API_ENDPOINTS = [
   '/api/overview',
-  '/api/powergrid/summary',
-  '/api/factory/summary',
-  '/api/railauto/summary',
+  '/api/powergrid/overview',
+  '/api/factory/dashboard',
+  '/api/rail/dashboard',
   '/api/alerts'
 ] as const;
 
@@ -48,7 +56,519 @@ export interface RuntimeStatusSnapshot {
   apiBaseUrl: string;
 }
 
+interface FallbackContext {
+  wasFallback: boolean;
+  reason?: string;
+}
+
+const fallbackContext: FallbackContext = { wasFallback: false };
+
 const getDefaultMode = (): DataSourceMode => (API_ENABLED_BY_ENV ? 'live' : 'mock');
+
+const wait = async (delay = LATENCY_MS): Promise<void> => {
+  await new Promise((resolve) => setTimeout(resolve, delay));
+};
+
+const clone = <T>(payload: T): T => structuredClone(payload);
+
+const buildUrl = (path: string): string => {
+  const base = API_BASE_URL.replace(/\/$/, '');
+  return `${base}${path}`;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  return value as Record<string, unknown>;
+};
+
+const asArray = (value: unknown): Record<string, unknown>[] => {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object');
+};
+
+const toTimestamp = (value: unknown): string | undefined => {
+  if (typeof value === 'string' && value.trim()) return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return new Date(value).toISOString();
+  return undefined;
+};
+
+const toBoolean = (value: unknown): boolean | undefined => {
+  if (typeof value === 'boolean') return value;
+  const num = safeNumber(value);
+  if (num !== null) return num !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on', 'active', 'done', 'running', 'operational'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'off', 'idle', 'waiting', 'inactive', 'down'].includes(normalized)) return false;
+  }
+  return undefined;
+};
+
+const pickNumber = (source: Record<string, unknown>, keys: string[]): number | undefined => {
+  for (const key of keys) {
+    const value = safeNumber(source[key]);
+    if (value !== null) return value;
+  }
+  return undefined;
+};
+
+const pickPercent = (source: Record<string, unknown>, keys: string[]): number | undefined => {
+  for (const key of keys) {
+    const value = safePercentage(source[key]);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+};
+
+const pickBoolean = (source: Record<string, unknown>, keys: string[]): boolean | undefined => {
+  for (const key of keys) {
+    const value = toBoolean(source[key]);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+};
+
+const metadataFrom = (source: Record<string, unknown>, isFallback: boolean): ApiMetadata => {
+  const rawFallback = toBoolean(source.fallback);
+  return {
+    generatedAt: typeof source.generatedAt === 'string' ? source.generatedAt : undefined,
+    sourceUpdatedAt: typeof source.sourceUpdatedAt === 'string' ? source.sourceUpdatedAt : undefined,
+    source: typeof source.source === 'string' ? source.source : isFallback ? 'fallback' : undefined,
+    fallback: isFallback || rawFallback === true,
+    pointCount: safeNumber(source.pointCount) ?? undefined
+  };
+};
+
+const normalizeValueHistory = (
+  payload: unknown,
+  valueKeys: string[] = ['value']
+): HistoryValuePoint[] => {
+  const rows = asArray(payload);
+  const history: HistoryValuePoint[] = [];
+  for (const row of rows) {
+    const timestamp = toTimestamp(row.timestamp ?? row.time);
+    if (!timestamp) continue;
+    const value = pickNumber(row, valueKeys);
+    if (value === undefined) continue;
+    history.push({ timestamp, value });
+  }
+  return history;
+};
+
+const normalizeQapHistory = (payload: unknown): HistoryQapPoint[] => {
+  const rows = asArray(payload);
+  const history: HistoryQapPoint[] = [];
+  for (const row of rows) {
+    const timestamp = toTimestamp(row.timestamp ?? row.time);
+    if (!timestamp) continue;
+    const quality = pickPercent(row, ['quality', 'qualityPercent']);
+    const availability = pickPercent(row, ['availability', 'availabilityPercent']);
+    const performance = pickPercent(row, ['performance', 'performancePercent']);
+    if (quality === undefined || availability === undefined || performance === undefined) continue;
+    history.push({ timestamp, quality, availability, performance });
+  }
+  return history;
+};
+
+const normalizeThroughputHistory = (payload: unknown): HistoryThroughputPoint[] => {
+  const rows = asArray(payload);
+  const history: HistoryThroughputPoint[] = [];
+  for (const row of rows) {
+    const timestamp = toTimestamp(row.timestamp ?? row.time);
+    if (!timestamp) continue;
+    const perMin = pickNumber(row, ['perMin', 'throughputPerMin', 'value']);
+    const perHour = pickNumber(row, ['perHour', 'throughputPerHour']);
+    if (perMin === undefined && perHour === undefined) continue;
+    history.push({
+      timestamp,
+      perMin: perMin ?? 0,
+      perHour: perHour ?? 0
+    });
+  }
+  return history;
+};
+
+const normalizeUptimeHistory = (payload: unknown): HistoryUptimePoint[] => {
+  const rows = asArray(payload);
+  const history: HistoryUptimePoint[] = [];
+  for (const row of rows) {
+    const timestamp = toTimestamp(row.timestamp ?? row.time);
+    if (!timestamp) continue;
+    const uptimeSeconds = pickNumber(row, ['uptimeSeconds', 'uptime', 'value']);
+    const downtimeSeconds = pickNumber(row, ['downtimeSeconds', 'downtime']);
+    if (uptimeSeconds === undefined && downtimeSeconds === undefined) continue;
+    history.push({
+      timestamp,
+      uptimeSeconds: uptimeSeconds ?? 0,
+      downtimeSeconds: downtimeSeconds ?? 0
+    });
+  }
+  return history;
+};
+
+const normalizeBalanceHistory = (payload: unknown): HistoryBalancePoint[] => {
+  const rows = asArray(payload);
+  const history: HistoryBalancePoint[] = [];
+  for (const row of rows) {
+    const timestamp = toTimestamp(row.timestamp ?? row.time);
+    if (!timestamp) continue;
+    const production = pickNumber(row, ['production', 'totalProduction']);
+    const consumption = pickNumber(row, ['consumption', 'totalConsumption']);
+    if (production === undefined && consumption === undefined) continue;
+    history.push({
+      timestamp,
+      production: production ?? 0,
+      consumption: consumption ?? 0
+    });
+  }
+  return history;
+};
+
+const normalizeSourceMixHistory = (payload: unknown): HistorySourceMixPoint[] => {
+  const rows = asArray(payload);
+  const history: HistorySourceMixPoint[] = [];
+  for (const row of rows) {
+    const timestamp = toTimestamp(row.timestamp ?? row.time);
+    if (!timestamp) continue;
+    const pe = pickPercent(row, ['pe', 'PE', 'windPct']);
+    const fs = pickPercent(row, ['fs', 'FS', 'solarPct']);
+    const gs = pickPercent(row, ['gs', 'GS', 'gasPct']);
+    if (pe === undefined || fs === undefined || gs === undefined) continue;
+    history.push({ timestamp, pe, fs, gs });
+  }
+  return history;
+};
+
+const normalizeDemandHistory = (payload: unknown): HistoryDemandPoint[] => {
+  const rows = asArray(payload);
+  const history: HistoryDemandPoint[] = [];
+  for (const row of rows) {
+    const timestamp = toTimestamp(row.timestamp ?? row.time);
+    if (!timestamp) continue;
+    const factory = pickNumber(row, ['factory', 'factoryDemand']);
+    const homes = pickNumber(row, ['homes', 'homesDemand']);
+    const railway = pickNumber(row, ['railway', 'railwayDemand']);
+    if (factory === undefined && homes === undefined && railway === undefined) continue;
+    history.push({
+      timestamp,
+      factory: factory ?? 0,
+      homes: homes ?? 0,
+      railway: railway ?? 0
+    });
+  }
+  return history;
+};
+
+const getDataRecord = (payload: unknown): Record<string, unknown> => {
+  const direct = asRecord(payload);
+  if (!direct) return {};
+  const nestedPayload = asRecord(direct.payload);
+  return nestedPayload ?? direct;
+};
+
+const normalizeFactory = (payload: unknown, isFallback: boolean): FactorySummary => {
+  const data = getDataRecord(payload);
+  const meta = metadataFrom(data, isFallback);
+  const tanks = asRecord(data.tanks);
+  const tankSummary = asRecord(data.tankSummary);
+
+  const totalCycles = pickNumber(data, ['totalCycles', 'cycleCount', 'MES.TotalCycles']);
+  const cycleCount = pickNumber(data, ['cycleCount', 'totalCycles']);
+  const cycleActive = pickBoolean(data, ['cycleActive', 'MES.CycleActive']);
+  const cycleFinished = pickBoolean(data, ['cycleFinished', 'cycleDone', 'MES.CycleDone']);
+
+  const oee = pickPercent(data, ['oee', 'OEE', 'MES.OEE', 'efficiencyScore']);
+  const qualityPercent = pickPercent(data, ['qualityPercent', 'quality', 'MES.QualityPercent']);
+  const availabilityPercent = pickPercent(data, ['availabilityPercent', 'availability', 'MES.AvailabilityPercent']);
+  const performancePercent = pickPercent(data, ['performancePercent', 'performance', 'MES.PerformancePercent']);
+  const loadPercent = pickPercent(data, ['loadPercent', 'MES.LoadPercent']);
+
+  return {
+    ...meta,
+    installationActive: pickBoolean(data, ['installationActive']) ?? false,
+    plantOperational: pickBoolean(data, ['plantOperational']) ?? false,
+    cycleActive: cycleActive ?? false,
+    cycleFinished: cycleFinished ?? false,
+    totalCycles,
+    cycleCount,
+    recyclingActive: pickBoolean(data, ['recyclingActive']) ?? false,
+    oee,
+    qualityPercent,
+    availabilityPercent,
+    performancePercent,
+    totalGood: pickNumber(data, ['totalGood', 'MES.TotalGood']),
+    totalReject: pickNumber(data, ['totalReject', 'MES.TotalReject']),
+    throughputPerMin: pickNumber(data, ['throughputPerMin', 'MES.ThroughputPerMin']),
+    throughputPerHour: pickNumber(data, ['throughputPerHour', 'MES.ThroughputPerHour']),
+    loadPercent,
+    uptimeSeconds: pickNumber(data, ['uptimeSeconds', 'MES.UptimeSeconds']),
+    downtimeSeconds: pickNumber(data, ['downtimeSeconds', 'MES.DowntimeSeconds']),
+    processState: pickNumber(data, ['processState', 'MES.ProcessState']),
+    targetCycleTime: pickNumber(data, ['targetCycleTime', 'MES.TargetCycleTime']),
+    actualCycleTime: pickNumber(data, ['actualCycleTime', 'MES.ActualCycleTime']),
+    efficiencyScore: oee,
+    tanks: {
+      tank1Low: tanks ? pickPercent(tanks, ['tank1Low']) : undefined,
+      tank1High: tanks ? pickPercent(tanks, ['tank1High']) : undefined,
+      tank2Low: tanks ? pickPercent(tanks, ['tank2Low']) : undefined,
+      tank2High: tanks ? pickPercent(tanks, ['tank2High']) : undefined
+    },
+    tankSummary: {
+      fullCount: tankSummary ? pickNumber(tankSummary, ['fullCount']) : undefined,
+      lowCount: tankSummary ? pickNumber(tankSummary, ['lowCount']) : undefined
+    },
+    oeeHistory: normalizeValueHistory(data.oeeHistory, ['value', 'oee']),
+    qapHistory: normalizeQapHistory(data.qapHistory),
+    throughputHistory: normalizeThroughputHistory(data.throughputHistory),
+    cycleHistory: normalizeValueHistory(data.cycleHistory, ['value', 'totalCycles']),
+    uptimeHistory: normalizeUptimeHistory(data.uptimeHistory)
+  };
+};
+
+const normalizeRail = (payload: unknown, isFallback: boolean): RailSummary => {
+  const data = getDataRecord(payload);
+  const meta = metadataFrom(data, isFallback);
+  const auto = asRecord(data.railAuto) ?? asRecord(data.railauto) ?? asRecord(data.auto) ?? data;
+  const manual = asRecord(data.railManual) ?? asRecord(data.railmanual) ?? asRecord(data.manual) ?? {};
+
+  const progressPct = pickPercent(auto, ['progressPct', 'progress', 'MES.ProgressPercent']) ?? 0;
+  const completedSteps = Math.max(0, Math.min(4, Math.round(progressPct / 25)));
+  const blockRisk = pickPercent(auto, ['blockRisk']) ?? undefined;
+  const safetyScore = pickPercent(manual, ['safetyScore', 'MES.SafetyScore']);
+  const routingScore = pickPercent(manual, ['routingScore', 'MES.RoutingScore']);
+
+  return {
+    ...meta,
+    railAuto: {
+      ...meta,
+      progressPct,
+      step: pickNumber(auto, ['step', 'MES.Step']),
+      cycleActive: pickBoolean(auto, ['cycleActive', 'MES.CycleActive']) ?? false,
+      cycleDone: pickBoolean(auto, ['cycleDone', 'cycleFinished', 'MES.CycleDone']) ?? false,
+      state: pickNumber(auto, ['state', 'MES.State']) ?? (typeof auto.state === 'string' ? auto.state : undefined),
+      faultType: pickNumber(auto, ['faultType', 'MES.FaultType']) ?? (typeof auto.faultType === 'string' ? auto.faultType : undefined),
+      integrity: pickBoolean(auto, ['integrity', 'MES.Integrity']),
+      throughput: pickNumber(auto, ['throughput', 'MES.Throughput']),
+      blockRisk,
+      progressHistory: normalizeValueHistory(auto.progressHistory ?? data.progressHistory, ['value', 'progress', 'progressPct']),
+      throughputHistory: normalizeValueHistory(auto.throughputHistory ?? data.throughputHistory, ['value', 'throughput'])
+    },
+    railManual: {
+      ...meta,
+      fesRouteValid: pickBoolean(manual, ['fesRouteValid', 'FESRouteValid', 'MES.FESRouteValid']),
+      marrakechRouteValid: pickBoolean(manual, ['marrakechRouteValid', 'MES.MarrakechRouteValid']),
+      directionConflict: pickBoolean(manual, ['directionConflict', 'MES.DirectionConflict']),
+      totalCycleCount: pickNumber(manual, ['totalCycleCount', 'MES.TotalCycleCount']),
+      fesCycleCount: pickNumber(manual, ['fesCycleCount', 'MES.FESCycleCount']),
+      marrakechCycleCount: pickNumber(manual, ['marrakechCycleCount', 'MES.MarrakechCycleCount']),
+      safetyScore,
+      routingScore,
+      globalFault: pickBoolean(manual, ['globalFault', 'MES.GlobalFault']),
+      conflictCount: pickNumber(manual, ['conflictCount', 'MES.ConflictCount']),
+      throughput: pickNumber(manual, ['throughput', 'MES.Throughput']),
+      loadPercent: pickPercent(manual, ['loadPercent', 'MES.LoadPercent']),
+      safetyHistory: normalizeValueHistory(manual.safetyHistory ?? data.safetyHistory, ['value', 'safetyScore']),
+      routingHistory: normalizeValueHistory(manual.routingHistory ?? data.routingHistory, ['value', 'routingScore']),
+      conflictHistory: normalizeValueHistory(manual.conflictHistory ?? data.conflictHistory, ['value', 'conflictCount'])
+    },
+    progress: progressPct,
+    ratio: Number((progressPct / 100).toFixed(2)),
+    blockRisk,
+    completedSteps,
+    step1: completedSteps >= 1,
+    step2: completedSteps >= 2,
+    step3: completedSteps >= 3,
+    step4: completedSteps >= 4,
+    score: safetyScore ?? routingScore ?? undefined
+  };
+};
+
+const normalizePowerGrid = (payload: unknown, isFallback: boolean): PowerGridSummary => {
+  const data = getDataRecord(payload);
+  const meta = metadataFrom(data, isFallback);
+  const sourceMix = asRecord(data.sourceMix) ?? {};
+  const generation = asRecord(data.generation) ?? {};
+  const demand = asRecord(data.demandByClient) ?? {};
+
+  const totalProduction = pickNumber(data, ['totalProduction', 'tap', 'MES.TotalProduction']);
+  const totalConsumption = pickNumber(data, ['totalConsumption', 'tcp', 'MES.TotalConsumption']);
+  const delta = pickNumber(data, ['delta']) ?? (totalProduction !== undefined && totalConsumption !== undefined
+    ? Number((totalProduction - totalConsumption).toFixed(2))
+    : undefined);
+
+  const normalizedSourceMix = {
+    pe: pickPercent(sourceMix, ['pe', 'PE', 'windPct']),
+    fs: pickPercent(sourceMix, ['fs', 'FS', 'solarPct']),
+    gs: pickPercent(sourceMix, ['gs', 'GS', 'gasPct']),
+    windPct: pickPercent(sourceMix, ['windPct', 'pe', 'PE']),
+    solarPct: pickPercent(sourceMix, ['solarPct', 'fs', 'FS']),
+    gasPct: pickPercent(sourceMix, ['gasPct', 'gs', 'GS'])
+  };
+
+  return {
+    ...meta,
+    tap: pickNumber(data, ['tap', 'totalProduction', 'MES.TotalProduction']),
+    tcp: pickNumber(data, ['tcp', 'totalConsumption', 'MES.TotalConsumption']),
+    delta,
+    balanceStatus: typeof data.balanceStatus === 'string'
+      ? data.balanceStatus
+      : delta !== undefined
+        ? delta < 0
+          ? 'deficit'
+          : Math.abs(delta) < 0.01
+            ? 'balanced'
+            : 'surplus'
+        : undefined,
+    totalProduction,
+    totalConsumption,
+    reserveMargin: pickNumber(data, ['reserveMargin', 'reserve', 'MES.ReserveMargin']),
+    sourceMix: normalizedSourceMix,
+    generation: {
+      pe: pickNumber(generation, ['pe', 'PE']),
+      fs: pickNumber(generation, ['fs', 'FS']),
+      gs: pickNumber(generation, ['gs', 'GS'])
+    },
+    losses: pickNumber(data, ['losses', 'MES.Losses']),
+    reserve: pickNumber(data, ['reserve', 'reserveMargin', 'MES.ReserveMargin']),
+    servedStatus: Array.isArray(data.servedStatus) ? data.servedStatus : [],
+    anomalySummary: Array.isArray(data.anomalySummary) ? data.anomalySummary : [],
+    sources: asRecord(data.sources) as PowerGridSummary['sources'],
+    sourceStates: asRecord(data.sourceStates) as PowerGridSummary['sourceStates'],
+    activeSources: pickNumber(data, ['activeSources']),
+    demandByClient: {
+      factory: pickNumber(demand, ['factory', 'factoryDemand']) ?? pickNumber(data, ['factoryDemand', 'MES.FactoryDemand']),
+      homes: pickNumber(demand, ['homes', 'homesDemand']) ?? pickNumber(data, ['homesDemand', 'MES.HomesDemand']),
+      railway: pickNumber(demand, ['railway', 'railwayDemand']) ?? pickNumber(data, ['railwayDemand', 'MES.RailwayDemand'])
+    },
+    balanceHistory: normalizeBalanceHistory(data.balanceHistory),
+    reserveHistory: normalizeValueHistory(data.reserveHistory, ['value', 'reserve', 'reserveMargin']),
+    lossesHistory: normalizeValueHistory(data.lossesHistory, ['value', 'losses']),
+    sourceMixHistory: normalizeSourceMixHistory(data.sourceMixHistory),
+    demandHistory: normalizeDemandHistory(data.demandHistory)
+  };
+};
+
+const normalizeOverview = (payload: unknown, isFallback: boolean): OverviewPayload => {
+  const data = getDataRecord(payload);
+  const meta = metadataFrom(data, isFallback);
+  const scores = asRecord(data.scores) ?? {};
+  const alerts = asRecord(data.alerts) ?? {};
+  const factory = asRecord(data.factory) ?? {};
+  const powergrid = asRecord(data.powergrid) ?? {};
+  const railauto = asRecord(data.railauto) ?? {};
+  const railmanual = asRecord(data.railmanual) ?? {};
+  const pipeline = asRecord(data.pipeline) ?? {};
+
+  return {
+    ...meta,
+    globalMesScore: pickPercent(data, ['globalMesScore']) ?? pickPercent(scores, ['global']),
+    factoryOee: pickPercent(data, ['factoryOee']) ?? pickPercent(factory, ['oee', 'efficiencyScore']),
+    powerReserve: pickNumber(data, ['powerReserve']) ?? pickNumber(powergrid, ['reserveMargin', 'reserve']),
+    railSafety: pickPercent(data, ['railSafety']) ?? pickPercent(railmanual, ['safetyScore']) ?? pickPercent(railauto, ['safetyScore']),
+    activeAlerts: pickNumber(data, ['activeAlerts']) ?? pickNumber(alerts, ['count', 'alertCount']),
+    recommendedActions: Array.isArray(data.recommendedActions)
+      ? data.recommendedActions.filter((item): item is string => typeof item === 'string')
+      : [],
+    pipelineStatus: typeof data.pipelineStatus === 'string'
+      ? data.pipelineStatus
+      : typeof pipeline.status === 'string'
+        ? pipeline.status
+        : undefined,
+    status: typeof data.status === 'string' ? data.status : undefined,
+    powergrid: {
+      ...powergrid,
+      reserveMargin: pickNumber(powergrid, ['reserveMargin', 'reserve']),
+      losses: pickNumber(powergrid, ['losses'])
+    },
+    factory,
+    railauto,
+    railmanual,
+    scores: {
+      energy: pickPercent(scores, ['energy']),
+      factory: pickPercent(scores, ['factory']),
+      rail: pickPercent(scores, ['rail']),
+      global: pickPercent(scores, ['global'])
+    },
+    alerts: {
+      deficit: pickNumber(alerts, ['deficit']) ?? undefined,
+      factoryBlocked: pickNumber(alerts, ['factoryBlocked']) ?? undefined,
+      railBlocked: pickNumber(alerts, ['railBlocked']) ?? undefined
+    },
+    pipeline: {
+      ...pipeline,
+      stale: toBoolean(pipeline.stale)
+    }
+  };
+};
+
+const normalizeAlerts = (payload: unknown, isFallback: boolean): AlertsPayload => {
+  const data = getDataRecord(payload);
+  const meta = metadataFrom(data, isFallback);
+  const active = Array.isArray(data.active) ? data.active : [];
+  const recent = Array.isArray(data.recent) ? data.recent : [];
+  const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+
+  return {
+    ...meta,
+    active: active as AlertsPayload['active'],
+    recent: recent as AlertsPayload['recent'],
+    alerts: alerts as AlertsPayload['alerts'],
+    count: pickNumber(data, ['count']),
+    alertCount: pickNumber(data, ['alertCount', 'count'])
+  };
+};
+
+const fetchJsonWithTimeout = async <T>(path: string): Promise<T> => {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
+  try {
+    const response = await fetch(buildUrl(path), {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return (await response.json()) as T;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+};
+
+const withFallback = async <T>(
+  path: string,
+  fallback: () => T,
+  postProcess: (payload: T, isFallback: boolean) => T
+): Promise<T> => {
+  const mode = getDataSourceMode();
+  if (mode === 'mock') {
+    const payload = fallback();
+    fallbackContext.wasFallback = true;
+    fallbackContext.reason = 'Mock mode enabled by user';
+    return postProcess(payload, true);
+  }
+
+  if (!API_ENABLED_BY_ENV) {
+    const payload = fallback();
+    fallbackContext.wasFallback = true;
+    fallbackContext.reason = 'API disabled by environment (VITE_DISABLE_API=1)';
+    return postProcess(payload, true);
+  }
+
+  try {
+    const payload = await fetchJsonWithTimeout<T>(path);
+    fallbackContext.wasFallback = false;
+    fallbackContext.reason = undefined;
+    return postProcess(payload, false);
+  } catch (error) {
+    console.warn(`[DataProtect MES] API ${path} unavailable, fallback to mocks.`, error);
+    const payload = fallback();
+    fallbackContext.wasFallback = true;
+    fallbackContext.reason = error instanceof Error ? error.message : 'API unreachable';
+    return postProcess(payload, true);
+  }
+};
 
 export const getDataSourceMode = (): DataSourceMode => {
   if (typeof window === 'undefined') return getDefaultMode();
@@ -94,24 +614,6 @@ export const subscribeDataSourceMode = (listener: (mode: DataSourceMode) => void
     window.removeEventListener('storage', storageHandler);
   };
 };
-
-const wait = async (delay = LATENCY_MS): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, delay));
-};
-
-const clone = <T>(payload: T): T => structuredClone(payload);
-
-const buildUrl = (path: string): string => {
-  const base = API_BASE_URL.replace(/\/$/, '');
-  return `${base}${path}`;
-};
-
-interface FallbackContext {
-  wasFallback: boolean;
-  reason?: string;
-}
-
-const fallbackContext: FallbackContext = { wasFallback: false };
 
 export const getLastFallbackReason = (): FallbackContext => ({ ...fallbackContext });
 
@@ -166,7 +668,6 @@ const probeEndpoint = async (path: string): Promise<ApiEndpointHealth> => {
       cache: 'no-store',
       signal: controller.signal
     });
-
     const latencyMs = Math.round(performance.now() - started);
     return {
       endpoint: path,
@@ -197,199 +698,37 @@ export const getApiHealthReport = async (): Promise<ApiEndpointHealth[]> => {
   return Promise.all(checks);
 };
 
-const fetchJsonWithTimeout = async <T>(path: string): Promise<T> => {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
-  try {
-    const response = await fetch(buildUrl(path), {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-      signal: controller.signal
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    return (await response.json()) as T;
-  } finally {
-    window.clearTimeout(timeout);
-  }
-};
-
-const withFallback = async <T>(
-  path: string,
-  fallback: () => T,
-  postProcess?: (payload: T, isFallback: boolean) => T
-): Promise<{ data: T; isFallback: boolean }> => {
-  const mode = getDataSourceMode();
-  if (mode === 'mock') {
-    const mockPayload = fallback();
-    fallbackContext.wasFallback = true;
-    fallbackContext.reason = 'Mock mode enabled by user';
-    return { data: postProcess ? postProcess(mockPayload, true) : mockPayload, isFallback: true };
-  }
-
-  if (!API_ENABLED_BY_ENV) {
-    const mockPayload = fallback();
-    fallbackContext.wasFallback = true;
-    fallbackContext.reason = 'API disabled by environment (VITE_DISABLE_API=1)';
-    return { data: postProcess ? postProcess(mockPayload, true) : mockPayload, isFallback: true };
-  }
-
-  try {
-    const payload = await fetchJsonWithTimeout<T>(path);
-    fallbackContext.wasFallback = false;
-    fallbackContext.reason = undefined;
-    return { data: postProcess ? postProcess(payload, false) : payload, isFallback: false };
-  } catch (error) {
-    console.warn(`[DataProtect MES] API ${path} unavailable, fallback to mocks.`, error);
-    const mockPayload = fallback();
-    fallbackContext.wasFallback = true;
-    fallbackContext.reason = error instanceof Error ? error.message : 'API unreachable';
-    return { data: postProcess ? postProcess(mockPayload, true) : mockPayload, isFallback: true };
-  }
-};
-
 export const getOverview = async (): Promise<OverviewPayload> => {
   await wait();
-  const { data, isFallback } = await withFallback(
-    '/api/overview',
-    () => clone(overviewMock),
-    (payload, isFallback) => {
-      // Ensure required fields exist, but never replace valid values
-      payload.scores = payload.scores ?? { energy: 0, factory: 0, rail: 0, global: 0 };
-      payload.railauto = payload.railauto ?? { completedSteps: 0, progressPct: 0 };
-      payload.powergrid = payload.powergrid ?? { tap: 0, tcp: 0, delta: 0, totalProduction: 0 };
-      
-      // If fallback, add flag to indicate estimated data
-      if (isFallback) {
-        (payload as any)._isFallback = true;
-      }
-      return payload;
-    }
+  return withFallback('/api/overview', () => clone(overviewMock), (payload, isFallback) =>
+    normalizeOverview(payload, isFallback)
   );
-  return data;
 };
 
 export const getPowerGridSummary = async (): Promise<PowerGridSummary> => {
   await wait();
-  const { data, isFallback } = await withFallback(
-    '/api/powergrid/summary',
-    () => clone(powerGridMock),
-    (payload, isFallback) => {
-      // Only ensure delta is computed if both tap and tcp are present
-      if (payload.delta === undefined && payload.tap !== undefined && payload.tcp !== undefined) {
-        payload.delta = Number((Number(payload.tap) - Number(payload.tcp)).toFixed(1));
-      }
-      
-      // Validate percentage fields
-      if (payload.sourceMix) {
-        const mix = payload.sourceMix;
-        if (mix.PE !== undefined) mix.PE = safePercentage(mix.PE);
-        if (mix.FS !== undefined) mix.FS = safePercentage(mix.FS);
-        if (mix.GS !== undefined) mix.GS = safePercentage(mix.GS);
-        if (mix.pe !== undefined) mix.pe = safePercentage(mix.pe);
-        if (mix.fs !== undefined) mix.fs = safePercentage(mix.fs);
-        if (mix.gs !== undefined) mix.gs = safePercentage(mix.gs);
-        if (mix.windPct !== undefined) mix.windPct = safePercentage(mix.windPct);
-        if (mix.solarPct !== undefined) mix.solarPct = safePercentage(mix.solarPct);
-        if (mix.gasPct !== undefined) mix.gasPct = safePercentage(mix.gasPct);
-      }
-      
-      // Preserve metadata flags
-      if (isFallback) {
-        payload.fallback = true;
-      }
-      return payload;
-    }
+  return withFallback('/api/powergrid/overview', () => clone(powerGridMock), (payload, isFallback) =>
+    normalizePowerGrid(payload, isFallback)
   );
-  return data;
 };
 
 export const getFactorySummary = async (): Promise<FactorySummary> => {
   await wait();
-  const { data, isFallback } = await withFallback(
-    '/api/factory/summary',
-    () => clone(factoryMock),
-    (payload, isFallback) => {
-      // Ensure required fields exist
-      payload.tanks = payload.tanks ?? { tank1Low: 0, tank1High: 0, tank2Low: 0, tank2High: 0 };
-      
-      // Validate percentage fields: tank levels and efficiencyScore
-      if (payload.tanks.tank1Low !== undefined) {
-        payload.tanks.tank1Low = safePercentage(payload.tanks.tank1Low);
-      }
-      if (payload.tanks.tank1High !== undefined) {
-        payload.tanks.tank1High = safePercentage(payload.tanks.tank1High);
-      }
-      if (payload.tanks.tank2Low !== undefined) {
-        payload.tanks.tank2Low = safePercentage(payload.tanks.tank2Low);
-      }
-      if (payload.tanks.tank2High !== undefined) {
-        payload.tanks.tank2High = safePercentage(payload.tanks.tank2High);
-      }
-      if (payload.efficiencyScore !== undefined) {
-        payload.efficiencyScore = safePercentage(payload.efficiencyScore);
-      }
-      
-      // Preserve metadata flags
-      if (isFallback) {
-        payload.fallback = true;
-      }
-      return payload;
-    }
+  return withFallback('/api/factory/dashboard', () => clone(factoryMock), (payload, isFallback) =>
+    normalizeFactory(payload, isFallback)
   );
-  return data;
 };
 
 export const getRailSummary = async (): Promise<RailSummary> => {
   await wait();
-  const { data, isFallback } = await withFallback(
-    '/api/railauto/summary',
-    () => clone(railAutoMock),
-    (payload, isFallback) => {
-      // Validate progress percentage
-      if (payload.progress !== undefined) {
-        payload.progress = safePercentage(payload.progress);
-      }
-      
-      // Compute derived fields from API data
-      // completedSteps is derived from progress percentage
-      if (payload.progress !== undefined && payload.progress !== null) {
-        payload.completedSteps = clamp(Math.round((Number(payload.progress) / 100) * 4), 0, 4);
-      } else {
-        payload.completedSteps = payload.completedSteps ?? 0;
-      }
-      
-      // Compute step indicators based on completedSteps
-      payload.step1 = 1;
-      payload.step2 = (payload.completedSteps ?? 0) >= 2 ? 1 : 0;
-      payload.step3 = (payload.completedSteps ?? 0) >= 3 ? 1 : 0;
-      payload.step4 = (payload.completedSteps ?? 0) >= 4 ? 1 : 0;
-      
-      // Preserve metadata flags
-      if (isFallback) {
-        payload.fallback = true;
-      }
-      return payload;
-    }
+  return withFallback('/api/rail/dashboard', () => clone(railAutoMock), (payload, isFallback) =>
+    normalizeRail(payload, isFallback)
   );
-  return data;
 };
 
 export const getAlerts = async (): Promise<AlertsPayload> => {
   await wait(180);
-  const { data, isFallback } = await withFallback(
-    '/api/alerts',
-    () => clone(alertsMock),
-    (payload, isFallback) => {
-      // Preserve metadata flags
-      if (isFallback) {
-        payload.fallback = true;
-      }
-      return payload;
-    }
+  return withFallback('/api/alerts', () => clone(alertsMock), (payload, isFallback) =>
+    normalizeAlerts(payload, isFallback)
   );
-  return data;
 };

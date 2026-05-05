@@ -26,5 +26,7 @@ export const alertsMock: AlertsPayload = {
   ],
   generatedAt: new Date().toISOString(),
   sourceUpdatedAt: new Date().toISOString(),
+  source: 'mock',
+  fallback: true,
   pointCount: 4
 };

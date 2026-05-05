@@ -1,225 +1,178 @@
 import { KpiCard } from '../components/kpi/KpiCard';
 import { Badge } from '../components/ui/badge';
-import { StatusPill } from '../components/kpi/StatusPill';
-import { Gauge } from '../components/charts/Gauge';
-import { GenerationStackedBar } from '../components/charts/GenerationStackedBar';
+import { MultiLineTrendChart } from '../components/charts/MultiLineTrendChart';
 import { ProductionConsumptionAreaChart } from '../components/charts/ProductionConsumptionAreaChart';
 import { ScoreTimelineChart } from '../components/charts/ScoreTimelineChart';
 import { SourceMixDonut } from '../components/charts/SourceMixDonut';
-import { useMesQuery } from '../hooks/useMesQuery';
-import { computeDerivedClientSideFallbacks, pickFromObject, pickNumber } from '../api/mesClient';
+import { ThroughputChart } from '../components/charts/ThroughputChart';
+import { useLiveData } from '../hooks/useLiveData';
+import { getPowerGridSummary } from '../services/mesService';
 import { classifyStatus, formatAge, formatKw, safeNumber } from '../utils/format';
 
-const toSeries = (payload: unknown, valueKey: string) => {
-  if (Array.isArray(payload)) {
-    return payload
-      .map((point) => ({
-        timestamp: String((point as Record<string, unknown>).timestamp ?? (point as Record<string, unknown>).time ?? ''),
-        value: pickNumber((point as Record<string, unknown>)[valueKey]) ?? pickNumber((point as Record<string, unknown>).value)
-      }))
-      .filter((point) => point.value !== null);
-  }
-  if (payload && typeof payload === 'object') {
-    const series = (payload as Record<string, unknown>).series;
-    if (Array.isArray(series)) return toSeries(series, valueKey);
-  }
-  return [] as Array<{ timestamp: string; value: number | null }>;
-};
+const STALE_AFTER_MS = 120_000;
 
-const buildMix = (payload: unknown) => {
-  if (payload && typeof payload === 'object') {
-    const mix = (payload as Record<string, unknown>).mix ?? payload;
-    if (mix && typeof mix === 'object') {
-      return Object.entries(mix as Record<string, unknown>)
-        .map(([name, value]) => ({ name, value: pickNumber(value) ?? 0 }))
-        .filter((item) => item.value > 0);
-    }
-  }
-  return [] as Array<{ name: string; value: number }>;
+const isStale = (sourceUpdatedAt: string | undefined): boolean => {
+  if (!sourceUpdatedAt) return false;
+  const ts = Date.parse(sourceUpdatedAt);
+  if (!Number.isFinite(ts)) return false;
+  return Date.now() - ts > STALE_AFTER_MS;
 };
 
 export const PowerGridPage = () => {
-  const overview = useMesQuery<Record<string, unknown>>(['powergrid', 'overview'], '/api/powergrid/overview');
-  const production = useMesQuery<Record<string, unknown> | unknown[]>(['powergrid', 'production'], '/api/powergrid/production');
-  const consumption = useMesQuery<Record<string, unknown> | unknown[]>(['powergrid', 'consumption'], '/api/powergrid/consumption');
-  const sourceMix = useMesQuery<Record<string, unknown>>(['powergrid', 'sourceMix'], '/api/powergrid/source-mix');
-  const losses = useMesQuery<Record<string, unknown>>(['powergrid', 'losses'], '/api/powergrid/losses');
-  const reserve = useMesQuery<Record<string, unknown>>(['powergrid', 'reserve'], '/api/powergrid/reserve');
-  const served = useMesQuery<Record<string, unknown> | unknown[]>(['powergrid', 'served'], '/api/powergrid/served-status');
-  const blackout = useMesQuery<Record<string, unknown>>(['powergrid', 'blackout'], '/api/powergrid/blackout-risk');
-  const energyScore = useMesQuery<Record<string, unknown> | unknown[]>(['powergrid', 'energyScore'], '/api/powergrid/energy-score');
-  const anomalies = useMesQuery<Record<string, unknown> | unknown[]>(['powergrid', 'anomaly'], '/api/powergrid/anomaly-summary');
+  const { data: summary, lastUpdated, isFallback } = useLiveData(getPowerGridSummary, 2000);
+  const lastUpdatedTs = lastUpdated ? lastUpdated.getTime() : null;
+  const source = summary?.source ?? 'unknown';
+  const stale = isStale(summary?.sourceUpdatedAt);
 
-  const derived = computeDerivedClientSideFallbacks(overview.data);
-  const balanceStatus = (overview.data?.balanceStatus as string | undefined) ?? '—';
+  const totalProduction = safeNumber(summary?.totalProduction ?? summary?.tap) ?? null;
+  const totalConsumption = safeNumber(summary?.totalConsumption ?? summary?.tcp) ?? null;
+  const reserveMargin = safeNumber(summary?.reserveMargin ?? summary?.reserve) ?? null;
+  const losses = safeNumber(summary?.losses) ?? null;
 
-  const lossesValue = pickFromObject(losses.data, ['losses', 'value', 'percent']) ??
-    pickFromObject(overview.data, ['losses', 'lossesPct']);
+  const sourceMixData = [
+    { name: 'PE', value: safeNumber(summary?.sourceMix?.pe ?? summary?.sourceMix?.PE) ?? 0 },
+    { name: 'FS', value: safeNumber(summary?.sourceMix?.fs ?? summary?.sourceMix?.FS) ?? 0 },
+    { name: 'GS', value: safeNumber(summary?.sourceMix?.gs ?? summary?.sourceMix?.GS) ?? 0 }
+  ].filter((item) => item.value > 0);
 
-  const reserveValue = pickFromObject(reserve.data, ['reserve', 'value', 'margin']) ?? pickFromObject(overview.data, ['reserve']);
-
-  const scoreSeries = toSeries(energyScore.data, 'score').map((point) => ({
-    timestamp: point.timestamp || 't',
-    value: Number(point.value ?? 0)
-  }));
-
-  const mixData = buildMix(sourceMix.data);
-
-  const prodSeries = toSeries(production.data, 'production');
-  const consSeries = toSeries(consumption.data, 'consumption');
-  const areaData = prodSeries.map((prod, index) => ({
-    timestamp: prod.timestamp || consSeries[index]?.timestamp || String(index + 1),
-    production: Number(prod.value ?? 0),
-    consumption: Number(consSeries[index]?.value ?? 0)
-  }));
-
-  const generationData = [
-    {
-      name: 'Generation',
-      pe: pickFromObject(overview.data, ['pe', 'PE']) ?? 0,
-      fs: pickFromObject(overview.data, ['fs', 'FS']) ?? 0,
-      gs: pickFromObject(overview.data, ['gs', 'GS']) ?? 0
-    }
-  ];
-
-  const servedRows = Array.isArray(served.data) ? served.data : (served.data?.rows as Record<string, unknown>[] | undefined) ?? [];
-  const anomalyRows = Array.isArray(anomalies.data) ? anomalies.data : (anomalies.data?.rows as Record<string, unknown>[] | undefined) ?? [];
-
-  const blackoutRiskValue = pickFromObject(blackout.data, ['risk', 'value', 'score']) ?? 0;
-  
-  const hasError = overview.isError || production.isError || consumption.isError || sourceMix.isError || 
-    losses.isError || reserve.isError || served.isError || blackout.isError || energyScore.isError || anomalies.isError;
+  const demandHistory = summary?.demandHistory ?? [];
+  const balanceHistory = summary?.balanceHistory ?? [];
 
   return (
     <div className="space-y-6">
-      {hasError && (
+      {isFallback && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-          <Badge variant="warning" className="mb-2">Données dégradées</Badge>
-          <p className="text-xs text-amber-700 dark:text-amber-400">Certaines données du réseau électrique sont indisponibles - seules les informations accessibles sont affichées.</p>
+          <Badge variant="warning" className="mb-2">Données estimées</Badge>
+          <p className="text-xs text-amber-700 dark:text-amber-400">Le flux live API est indisponible, le dashboard affiche des données de repli.</p>
         </div>
       )}
-      <section className="grid gap-4 lg:grid-cols-3">
+
+      <section className="grid gap-4 lg:grid-cols-4">
         <KpiCard
-          label="TAP"
-          value={derived.tap !== null ? formatKw(derived.tap) : '—'}
-          tone={classifyStatus(derived.tap)}
-          freshness={formatAge(overview.lastUpdated)}
-          status={balanceStatus}
-          helper="Total active production"
+          label="Total Production"
+          value={totalProduction !== null ? formatKw(totalProduction) : '—'}
+          tone={classifyStatus(totalProduction)}
+          freshness={formatAge(lastUpdatedTs)}
+          status={summary?.balanceStatus ?? '—'}
+          helper="MES.TotalProduction"
+          source={source}
+          isFallback={isFallback}
+          isStale={stale}
         />
         <KpiCard
-          label="TCP"
-          value={derived.tcp !== null ? formatKw(derived.tcp) : '—'}
-          tone={classifyStatus(derived.tcp)}
-          freshness={formatAge(overview.lastUpdated)}
-          status={derived.delta !== null && derived.delta < 0 ? 'deficit' : 'surplus'}
-          helper="Total consumption"
-          isFallback={derived.fallbackTcp}
+          label="Total Consumption"
+          value={totalConsumption !== null ? formatKw(totalConsumption) : '—'}
+          tone={classifyStatus(totalConsumption)}
+          freshness={formatAge(lastUpdatedTs)}
+          status={summary?.balanceStatus ?? '—'}
+          helper="MES.TotalConsumption"
+          source={source}
+          isFallback={isFallback}
+          isStale={stale}
         />
         <KpiCard
-          label="Delta"
-          value={derived.delta !== null ? formatKw(derived.delta) : '—'}
-          tone={derived.delta !== null && derived.delta < 0 ? 'critical' : 'ok'}
-          freshness={formatAge(overview.lastUpdated)}
-          status={derived.delta !== null && derived.delta < 0 ? 'deficit' : 'surplus'}
-          helper="Production minus consumption"
+          label="Reserve Margin"
+          value={reserveMargin !== null ? formatKw(reserveMargin) : '—'}
+          tone={reserveMargin !== null && reserveMargin < 0 ? 'critical' : 'ok'}
+          freshness={formatAge(lastUpdatedTs)}
+          status="reserve"
+          helper="MES.ReserveMargin"
+          source={source}
+          isFallback={isFallback}
+          isStale={stale}
+        />
+        <KpiCard
+          label="Losses"
+          value={losses !== null ? formatKw(losses) : '—'}
+          tone={losses !== null && losses > 40 ? 'warning' : 'ok'}
+          freshness={formatAge(lastUpdatedTs)}
+          status="losses"
+          helper="MES.Losses"
+          source={source}
+          isFallback={isFallback}
+          isStale={stale}
         />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[2fr_1fr]">
         <div className="panel">
-          <div className="flex items-center justify-between">
-            <p className="panel-title">Power balance</p>
-            <StatusPill label="balance" value={balanceStatus} tone={derived.delta !== null && derived.delta < 0 ? 'critical' : 'ok'} />
-          </div>
-          <ProductionConsumptionAreaChart data={areaData} />
+          <p className="panel-title">Production / Consumption History</p>
+          <ProductionConsumptionAreaChart data={balanceHistory} />
         </div>
-        <div className="panel space-y-4">
-          <Gauge
-            value={lossesValue ?? 0}
-            max={100}
-            label="Losses"
-            unit="%"
-            tone={lossesValue !== null && lossesValue > 10 ? 'warning' : 'ok'}
+        <div className="panel">
+          <p className="panel-title">Source Mix</p>
+          <SourceMixDonut data={sourceMixData} />
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <div className="panel">
+          <p className="panel-title">Reserve History</p>
+          <ThroughputChart data={summary?.reserveHistory ?? []} />
+        </div>
+        <div className="panel">
+          <p className="panel-title">Losses History</p>
+          <ScoreTimelineChart data={summary?.lossesHistory ?? []} color="#ef4444" />
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <div className="panel">
+          <p className="panel-title">Source Mix History (PE / FS / GS)</p>
+          <MultiLineTrendChart
+            data={summary?.sourceMixHistory ?? []}
+            domain={[0, 100]}
+            formatter={(value) => `${value.toFixed(1)}%`}
+            lines={[
+              { key: 'pe', label: 'PE', color: '#0ea5e9' },
+              { key: 'fs', label: 'FS', color: '#f97316' },
+              { key: 'gs', label: 'GS', color: '#22c55e' }
+            ]}
           />
-          <Gauge
-            value={reserveValue ?? 0}
-            max={100}
-            label="Reserve margin"
-            unit="%"
-            tone={reserveValue !== null && reserveValue < 15 ? 'warning' : 'ok'}
+        </div>
+        <div className="panel">
+          <p className="panel-title">Demand by Client History</p>
+          <MultiLineTrendChart
+            data={demandHistory}
+            formatter={(value) => value.toFixed(1)}
+            lines={[
+              { key: 'factory', label: 'Factory', color: '#3b82f6' },
+              { key: 'homes', label: 'Homes', color: '#8b5cf6' },
+              { key: 'railway', label: 'Railway', color: '#14b8a6' }
+            ]}
           />
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-3">
-        <div className="panel">
-          <p className="panel-title">Generation mix</p>
-          <SourceMixDonut data={mixData} />
-        </div>
-        <div className="panel">
-          <p className="panel-title">PE / FS / GS</p>
-          <GenerationStackedBar data={generationData} />
-        </div>
-        <div className="panel">
-          <div className="flex items-center justify-between">
-            <p className="panel-title">Blackout risk</p>
-            <StatusPill label="risk" value={`${blackoutRiskValue}`} tone={blackoutRiskValue > 60 ? 'critical' : 'warning'} />
-          </div>
-          <ScoreTimelineChart data={scoreSeries} color="#f97316" />
-        </div>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-        <div className="panel">
-          <p className="panel-title">Load served</p>
-          <div className="mt-3 overflow-auto">
-            <table className="w-full text-xs">
-              <thead className="text-left text-zinc-500 dark:text-zinc-400">
-                <tr>
-                  <th className="pb-2">Zone</th>
-                  <th className="pb-2">Demand</th>
-                  <th className="pb-2">Served</th>
-                </tr>
-              </thead>
-              <tbody>
-                {servedRows.length ? (
-                  servedRows.map((row, index) => (
-                    <tr key={index} className="border-t border-zinc-200/60 dark:border-zinc-800">
-                      <td className="py-2">{String((row as Record<string, unknown>).zone ?? (row as Record<string, unknown>).label ?? `Z${index + 1}`)}</td>
-                      <td className="py-2">{safeNumber((row as Record<string, unknown>).demand) ?? '—'}</td>
-                      <td className="py-2">{safeNumber((row as Record<string, unknown>).served) ?? '—'}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="py-3 text-zinc-500" colSpan={3}>
-                      No served-load matrix available.
-                    </td>
+      <section className="panel">
+        <p className="panel-title">Served Status</p>
+        <div className="mt-3 overflow-auto">
+          <table className="w-full text-xs">
+            <thead className="text-left text-zinc-500 dark:text-zinc-400">
+              <tr>
+                <th className="pb-2">Client</th>
+                <th className="pb-2">Demand</th>
+                <th className="pb-2">Served</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(summary?.servedStatus ?? []).map((row, index) => {
+                const item = row as Record<string, unknown>;
+                return (
+                  <tr key={index} className="border-t border-zinc-200/60 dark:border-zinc-800">
+                    <td className="py-2">{String(item.zone ?? item.client ?? `C${index + 1}`)}</td>
+                    <td className="py-2">{safeNumber(item.demand) ?? '—'}</td>
+                    <td className="py-2">{safeNumber(item.served) ?? '—'}</td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div className="panel">
-          <p className="panel-title">Anomaly summary</p>
-          <div className="mt-3 space-y-2 text-xs">
-            {anomalyRows.length ? (
-              anomalyRows.map((row, index) => (
-                <div key={index} className="rounded-md border border-zinc-200/60 px-3 py-2 dark:border-zinc-800">
-                  <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                    {String((row as Record<string, unknown>).title ?? (row as Record<string, unknown>).type ?? `Anomaly ${index + 1}`)}
-                  </p>
-                  <p className="text-zinc-500 dark:text-zinc-400">
-                    {String((row as Record<string, unknown>).summary ?? (row as Record<string, unknown>).detail ?? '—')}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="text-zinc-500">No anomalies reported.</p>
-            )}
-          </div>
+                );
+              })}
+              {!summary?.servedStatus?.length && (
+                <tr>
+                  <td className="py-3 text-zinc-500" colSpan={3}>No served status available.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
     </div>

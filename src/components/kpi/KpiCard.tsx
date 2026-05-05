@@ -1,5 +1,6 @@
 import { StatusPill } from './StatusPill';
 import type { StatusTone } from '../../utils/format';
+import { Badge } from '../ui/badge';
 
 interface KpiCardProps {
   label: string;
@@ -11,6 +12,8 @@ interface KpiCardProps {
   helper?: string;
   status?: string;
   isFallback?: boolean;
+  source?: string;
+  isStale?: boolean;
 }
 
 export const KpiCard = ({
@@ -22,7 +25,9 @@ export const KpiCard = ({
   tone = 'muted',
   helper,
   status,
-  isFallback
+  isFallback,
+  source,
+  isStale
 }: KpiCardProps) => (
   <div className="panel flex flex-col gap-3">
     <div className="flex items-start justify-between gap-4">
@@ -38,7 +43,9 @@ export const KpiCard = ({
     <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
       <span>trend {trend ?? '—'}</span>
       <span>fresh {freshness ?? '—'}</span>
-      {isFallback ? <span className="text-amber-500">fallback</span> : null}
+      {source ? <Badge variant="info">{source}</Badge> : null}
+      {isFallback ? <Badge variant="warning">fallback</Badge> : null}
+      {isStale ? <Badge variant="muted">stale</Badge> : null}
     </div>
     {helper ? <p className="text-xs text-zinc-500 dark:text-zinc-400">{helper}</p> : null}
   </div>

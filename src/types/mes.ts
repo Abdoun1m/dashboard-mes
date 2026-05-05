@@ -9,6 +9,50 @@ export interface ApiMetadata {
   pointCount?: number;
 }
 
+export interface HistoryValuePoint {
+  timestamp: string;
+  value: number;
+}
+
+export interface HistoryQapPoint {
+  timestamp: string;
+  quality: number;
+  availability: number;
+  performance: number;
+}
+
+export interface HistoryThroughputPoint {
+  timestamp: string;
+  perMin: number;
+  perHour: number;
+}
+
+export interface HistoryUptimePoint {
+  timestamp: string;
+  uptimeSeconds: number;
+  downtimeSeconds: number;
+}
+
+export interface HistoryBalancePoint {
+  timestamp: string;
+  production: number;
+  consumption: number;
+}
+
+export interface HistorySourceMixPoint {
+  timestamp: string;
+  pe: number;
+  fs: number;
+  gs: number;
+}
+
+export interface HistoryDemandPoint {
+  timestamp: string;
+  factory: number;
+  homes: number;
+  railway: number;
+}
+
 export interface MesAlert {
   id?: string | number;
   code?: string;
@@ -104,12 +148,65 @@ export interface FactorySummary extends ApiMetadata {
   totalCycles?: number;
   cycleCount?: number;
   recyclingActive?: number | boolean;
+  oee?: number;
+  qualityPercent?: number;
+  availabilityPercent?: number;
+  performancePercent?: number;
+  totalGood?: number;
+  totalReject?: number;
+  throughputPerMin?: number;
+  throughputPerHour?: number;
+  loadPercent?: number;
+  uptimeSeconds?: number;
+  downtimeSeconds?: number;
+  processState?: number;
+  targetCycleTime?: number;
+  actualCycleTime?: number;
   efficiencyScore?: number;
   tanks?: FactoryTanks;
   tankSummary?: FactoryTankSummary;
+  oeeHistory?: HistoryValuePoint[];
+  qapHistory?: HistoryQapPoint[];
+  throughputHistory?: HistoryThroughputPoint[];
+  cycleHistory?: HistoryValuePoint[];
+  uptimeHistory?: HistoryUptimePoint[];
+}
+
+export interface RailAutoSummary extends ApiMetadata {
+  progressPct?: number;
+  step?: number;
+  cycleActive?: number | boolean;
+  cycleDone?: number | boolean;
+  state?: number | string;
+  faultType?: number | string;
+  integrity?: number | boolean;
+  throughput?: number;
+  blockRisk?: number;
+  progressHistory?: HistoryValuePoint[];
+  throughputHistory?: HistoryValuePoint[];
+}
+
+export interface RailManualSummary extends ApiMetadata {
+  fesRouteValid?: number | boolean;
+  marrakechRouteValid?: number | boolean;
+  directionConflict?: number | boolean;
+  totalCycleCount?: number;
+  fesCycleCount?: number;
+  marrakechCycleCount?: number;
+  safetyScore?: number;
+  routingScore?: number;
+  globalFault?: number | boolean;
+  conflictCount?: number;
+  throughput?: number;
+  loadPercent?: number;
+  safetyHistory?: HistoryValuePoint[];
+  routingHistory?: HistoryValuePoint[];
+  conflictHistory?: HistoryValuePoint[];
 }
 
 export interface RailSummary extends ApiMetadata {
+  railAuto?: RailAutoSummary;
+  railManual?: RailManualSummary;
   progress?: number;
   ratio?: number;
   blockRisk?: number;
@@ -164,6 +261,7 @@ export interface PowerGridSummary extends ApiMetadata {
   balanceStatus?: string;
   totalProduction?: number;
   totalConsumption?: number;
+  reserveMargin?: number;
   sourceMix?: PowerGridSourceMix;
   generation?: PowerGridGeneration;
   losses?: number;
@@ -173,15 +271,35 @@ export interface PowerGridSummary extends ApiMetadata {
   sources?: PowerGridSources;
   sourceStates?: PowerGridSources;
   activeSources?: number;
+  demandByClient?: {
+    factory?: number;
+    homes?: number;
+    railway?: number;
+  };
+  balanceHistory?: HistoryBalancePoint[];
+  reserveHistory?: HistoryValuePoint[];
+  lossesHistory?: HistoryValuePoint[];
+  sourceMixHistory?: HistorySourceMixPoint[];
+  demandHistory?: HistoryDemandPoint[];
 }
 
-export interface OverviewPayload {
+export interface OverviewPayload extends ApiMetadata {
+  globalMesScore?: number;
+  factoryOee?: number;
+  powerReserve?: number;
+  railSafety?: number;
+  activeAlerts?: number;
+  recommendedActions?: string[];
+  pipelineStatus?: string;
+  status?: string;
   powergrid?: {
     tap?: number;
     tcp?: number;
     delta?: number;
     totalProduction?: number;
     totalConsumption?: number;
+    reserveMargin?: number;
+    losses?: number;
     [key: string]: unknown;
   };
   factory?: {
@@ -191,12 +309,34 @@ export interface OverviewPayload {
     cycleFinished?: number | boolean;
     totalCycles?: number;
     cycleCount?: number;
+    oee?: number;
+    qualityPercent?: number;
+    availabilityPercent?: number;
+    performancePercent?: number;
     [key: string]: unknown;
   };
   railauto?: {
     completedSteps?: number;
     progressPct?: number;
     progress?: number;
+    state?: number | string;
+    faultType?: number | string;
+    safetyScore?: number;
+    routingScore?: number;
+    step?: number;
+    cycleActive?: number | boolean;
+    cycleDone?: number | boolean;
+    [key: string]: unknown;
+  };
+  railmanual?: {
+    fesRouteValid?: number | boolean;
+    marrakechRouteValid?: number | boolean;
+    directionConflict?: number | boolean;
+    totalCycleCount?: number;
+    fesCycleCount?: number;
+    marrakechCycleCount?: number;
+    safetyScore?: number;
+    routingScore?: number;
     [key: string]: unknown;
   };
   scores?: {
@@ -210,12 +350,12 @@ export interface OverviewPayload {
     factoryBlocked?: number;
     railBlocked?: number;
   };
-  status?: string;
-  generatedAt?: string;
-  sourceUpdatedAt?: string;
-  source?: string;
-  fallback?: boolean;
-  pointCount?: number;
+  pipeline?: {
+    status?: string;
+    heartbeat?: number;
+    stale?: boolean;
+    [key: string]: unknown;
+  };
 }
 
 export interface AlertsPayload extends ApiMetadata {

@@ -22,8 +22,10 @@ export const useLiveData = <T>(loader: () => Promise<T>, refreshMs = 6000): Live
       const next = await loader();
       setData(next);
       setLastUpdated(new Date());
-      // Check if data has fallback flag
-      setIsFallback((next as any)?._isFallback ?? false);
+      const nextRecord = next as Record<string, unknown>;
+      const fallbackFlag = nextRecord?.fallback;
+      const legacyFallbackFlag = nextRecord?._isFallback;
+      setIsFallback((fallbackFlag === true) || (legacyFallbackFlag === true));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
       setIsFallback(true);
