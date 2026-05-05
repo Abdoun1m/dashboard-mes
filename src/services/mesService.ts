@@ -10,6 +10,7 @@ import type {
   HistoryBalancePoint,
   HistoryDemandPoint,
   HistoryQapPoint,
+  HistoryStatePoint,
   HistorySourceMixPoint,
   HistoryThroughputPoint,
   HistoryUptimePoint,
@@ -86,6 +87,23 @@ const asArray = (value: unknown): Record<string, unknown>[] => {
   return value.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object');
 };
 
+const extractSeriesRows = (payload: unknown): Record<string, unknown>[] => {
+  if (Array.isArray(payload)) return asArray(payload);
+  const record = asRecord(payload);
+  if (!record) return [];
+
+  if (Array.isArray(record.series)) return asArray(record.series);
+  if (Array.isArray(record.rows)) return asArray(record.rows);
+
+  const nestedPayload = asRecord(record.payload);
+  if (nestedPayload) {
+    if (Array.isArray(nestedPayload.series)) return asArray(nestedPayload.series);
+    if (Array.isArray(nestedPayload.rows)) return asArray(nestedPayload.rows);
+  }
+
+  return [];
+};
+
 const toTimestamp = (value: unknown): string | undefined => {
   if (typeof value === 'string' && value.trim()) return value;
   if (typeof value === 'number' && Number.isFinite(value)) return new Date(value).toISOString();
@@ -143,7 +161,7 @@ const normalizeValueHistory = (
   payload: unknown,
   valueKeys: string[] = ['value']
 ): HistoryValuePoint[] => {
-  const rows = asArray(payload);
+  const rows = extractSeriesRows(payload);
   const history: HistoryValuePoint[] = [];
   for (const row of rows) {
     const timestamp = toTimestamp(row.timestamp ?? row.time);
@@ -156,7 +174,7 @@ const normalizeValueHistory = (
 };
 
 const normalizeQapHistory = (payload: unknown): HistoryQapPoint[] => {
-  const rows = asArray(payload);
+  const rows = extractSeriesRows(payload);
   const history: HistoryQapPoint[] = [];
   for (const row of rows) {
     const timestamp = toTimestamp(row.timestamp ?? row.time);
@@ -171,7 +189,7 @@ const normalizeQapHistory = (payload: unknown): HistoryQapPoint[] => {
 };
 
 const normalizeThroughputHistory = (payload: unknown): HistoryThroughputPoint[] => {
-  const rows = asArray(payload);
+  const rows = extractSeriesRows(payload);
   const history: HistoryThroughputPoint[] = [];
   for (const row of rows) {
     const timestamp = toTimestamp(row.timestamp ?? row.time);
@@ -189,7 +207,7 @@ const normalizeThroughputHistory = (payload: unknown): HistoryThroughputPoint[] 
 };
 
 const normalizeUptimeHistory = (payload: unknown): HistoryUptimePoint[] => {
-  const rows = asArray(payload);
+  const rows = extractSeriesRows(payload);
   const history: HistoryUptimePoint[] = [];
   for (const row of rows) {
     const timestamp = toTimestamp(row.timestamp ?? row.time);
@@ -206,8 +224,37 @@ const normalizeUptimeHistory = (payload: unknown): HistoryUptimePoint[] => {
   return history;
 };
 
+const normalizeStateHistory = (payload: unknown): HistoryStatePoint[] => {
+  const rows = extractSeriesRows(payload);
+  const history: HistoryStatePoint[] = [];
+  for (const row of rows) {
+    const timestamp = toTimestamp(row.timestamp ?? row.time);
+    if (!timestamp) continue;
+    const installationActive = pickNumber(row, ['installationActive', 'value']);
+    const cycleActive = pickNumber(row, ['cycleActive']);
+    const cycleFinished = pickNumber(row, ['cycleFinished', 'cycleDone']);
+    const recyclingActive = pickNumber(row, ['recyclingActive']);
+    if (
+      installationActive === undefined &&
+      cycleActive === undefined &&
+      cycleFinished === undefined &&
+      recyclingActive === undefined
+    ) {
+      continue;
+    }
+    history.push({
+      timestamp,
+      installationActive: installationActive ?? 0,
+      cycleActive: cycleActive ?? 0,
+      cycleFinished: cycleFinished ?? 0,
+      recyclingActive: recyclingActive ?? 0
+    });
+  }
+  return history;
+};
+
 const normalizeBalanceHistory = (payload: unknown): HistoryBalancePoint[] => {
-  const rows = asArray(payload);
+  const rows = extractSeriesRows(payload);
   const history: HistoryBalancePoint[] = [];
   for (const row of rows) {
     const timestamp = toTimestamp(row.timestamp ?? row.time);
@@ -225,7 +272,7 @@ const normalizeBalanceHistory = (payload: unknown): HistoryBalancePoint[] => {
 };
 
 const normalizeSourceMixHistory = (payload: unknown): HistorySourceMixPoint[] => {
-  const rows = asArray(payload);
+  const rows = extractSeriesRows(payload);
   const history: HistorySourceMixPoint[] = [];
   for (const row of rows) {
     const timestamp = toTimestamp(row.timestamp ?? row.time);
@@ -240,7 +287,7 @@ const normalizeSourceMixHistory = (payload: unknown): HistorySourceMixPoint[] =>
 };
 
 const normalizeDemandHistory = (payload: unknown): HistoryDemandPoint[] => {
-  const rows = asArray(payload);
+  const rows = extractSeriesRows(payload);
   const history: HistoryDemandPoint[] = [];
   for (const row of rows) {
     const timestamp = toTimestamp(row.timestamp ?? row.time);
@@ -518,6 +565,355 @@ const normalizeAlerts = (payload: unknown, isFallback: boolean): AlertsPayload =
   };
 };
 
+const toSingleValueHistory = (
+  value: number | undefined,
+  timestamp?: string
+): HistoryValuePoint[] => {
+  if (value === undefined || !timestamp) return [];
+  return [{ timestamp, value }];
+};
+
+const fetchEndpointData = async (path: string): Promise<Record<string, unknown> | null> => {
+  try {
+    const payload = await fetchJsonWithTimeout<unknown>(path);
+    return getDataRecord(payload);
+  } catch (error) {
+    console.warn(`[DataProtect MES] Optional endpoint ${path} unavailable.`, error);
+    return null;
+  }
+};
+
+const withTimeAlias = <T extends { timestamp: string }>(rows: T[]): Array<T & { time: string }> =>
+  rows.map((row) => ({ ...row, time: row.timestamp }));
+
+const enrichPowerGridSummary = async (summary: PowerGridSummary): Promise<PowerGridSummary> => {
+  const [
+    productionPayload,
+    consumptionPayload,
+    reservePayload,
+    lossesPayload,
+    sourceMixPayload,
+    servedPayload
+  ] = await Promise.all([
+    fetchEndpointData('/api/powergrid/production'),
+    fetchEndpointData('/api/powergrid/consumption'),
+    fetchEndpointData('/api/powergrid/reserve'),
+    fetchEndpointData('/api/powergrid/losses'),
+    fetchEndpointData('/api/powergrid/source-mix'),
+    fetchEndpointData('/api/powergrid/served-status')
+  ]);
+
+  const mergedSeries = new Map<string, Record<string, number>>();
+  const productionSeries = extractSeriesRows(productionPayload);
+  for (const row of productionSeries) {
+    const timestamp = toTimestamp(row.timestamp ?? row.time);
+    if (!timestamp) continue;
+    const production = pickNumber(row, ['production', 'totalProduction', 'tap', 'value']);
+    const pe = pickNumber(row, ['pe', 'PE']);
+    const fs = pickNumber(row, ['fs', 'FS']);
+    const gs = pickNumber(row, ['gs', 'GS']);
+    if (!mergedSeries.has(timestamp)) mergedSeries.set(timestamp, {});
+    const target = mergedSeries.get(timestamp)!;
+    if (production !== undefined) target.production = production;
+    if (pe !== undefined) target.pe = pe;
+    if (fs !== undefined) target.fs = fs;
+    if (gs !== undefined) target.gs = gs;
+  }
+
+  const consumptionSeries = extractSeriesRows(consumptionPayload);
+  for (const row of consumptionSeries) {
+    const timestamp = toTimestamp(row.timestamp ?? row.time);
+    if (!timestamp) continue;
+    const consumption = pickNumber(row, ['consumption', 'totalConsumption', 'tcp', 'value']);
+    const factory = pickNumber(row, ['factory', 'factoryDemand']);
+    const homes = pickNumber(row, ['homes', 'homesDemand']);
+    const railway = pickNumber(row, ['railway', 'railwayDemand']);
+    if (!mergedSeries.has(timestamp)) mergedSeries.set(timestamp, {});
+    const target = mergedSeries.get(timestamp)!;
+    if (consumption !== undefined) target.consumption = consumption;
+    if (factory !== undefined) target.factory = factory;
+    if (homes !== undefined) target.homes = homes;
+    if (railway !== undefined) target.railway = railway;
+  }
+
+  const sortedTimestamps = Array.from(mergedSeries.keys()).sort((a, b) => a.localeCompare(b));
+  const balanceHistory = withTimeAlias(
+    sortedTimestamps
+      .map((timestamp) => {
+        const row = mergedSeries.get(timestamp)!;
+        if (row.production === undefined && row.consumption === undefined) return null;
+        return {
+          timestamp,
+          production: row.production ?? 0,
+          consumption: row.consumption ?? 0
+        };
+      })
+      .filter((row): row is { timestamp: string; production: number; consumption: number } => row !== null)
+  );
+
+  const demandHistory = withTimeAlias(
+    sortedTimestamps
+      .map((timestamp) => {
+        const row = mergedSeries.get(timestamp)!;
+        if (row.factory === undefined && row.homes === undefined && row.railway === undefined) return null;
+        return {
+          timestamp,
+          factory: row.factory ?? 0,
+          homes: row.homes ?? 0,
+          railway: row.railway ?? 0
+        };
+      })
+      .filter((row): row is { timestamp: string; factory: number; homes: number; railway: number } => row !== null)
+  );
+
+  const sourceMixHistory = withTimeAlias(
+    sortedTimestamps
+      .map((timestamp) => {
+        const row = mergedSeries.get(timestamp)!;
+        const pe = row.pe ?? 0;
+        const fs = row.fs ?? 0;
+        const gs = row.gs ?? 0;
+        const total = pe + fs + gs;
+        if (total <= 0) return null;
+        return {
+          timestamp,
+          pe: (pe / total) * 100,
+          fs: (fs / total) * 100,
+          gs: (gs / total) * 100
+        };
+      })
+      .filter((row): row is { timestamp: string; pe: number; fs: number; gs: number } => row !== null)
+  );
+
+  const reserveHistory =
+    normalizeValueHistory(reservePayload, ['value', 'reserve', 'reserveMargin']).length > 0
+      ? normalizeValueHistory(reservePayload, ['value', 'reserve', 'reserveMargin'])
+      : toSingleValueHistory(
+          pickNumber(reservePayload ?? {}, ['value', 'reserve', 'reserveMargin']),
+          toTimestamp(reservePayload?.sourceUpdatedAt ?? reservePayload?.generatedAt ?? summary.sourceUpdatedAt)
+        );
+
+  const lossesHistory =
+    normalizeValueHistory(lossesPayload, ['value', 'losses']).length > 0
+      ? normalizeValueHistory(lossesPayload, ['value', 'losses'])
+      : toSingleValueHistory(
+          pickNumber(lossesPayload ?? {}, ['value', 'losses']),
+          toTimestamp(lossesPayload?.sourceUpdatedAt ?? lossesPayload?.generatedAt ?? summary.sourceUpdatedAt)
+        );
+
+  const sourceMixRecord = asRecord(sourceMixPayload?.mix) ?? sourceMixPayload ?? {};
+  const servedRows =
+    asArray(servedPayload?.rows ?? servedPayload?.servedStatus ?? servedPayload?.series).length > 0
+      ? asArray(servedPayload?.rows ?? servedPayload?.servedStatus ?? servedPayload?.series)
+      : summary.servedStatus ?? [];
+
+  return {
+    ...summary,
+    sourceMix: {
+      ...summary.sourceMix,
+      pe: pickPercent(sourceMixRecord, ['pe', 'PE']) ?? summary.sourceMix?.pe,
+      fs: pickPercent(sourceMixRecord, ['fs', 'FS']) ?? summary.sourceMix?.fs,
+      gs: pickPercent(sourceMixRecord, ['gs', 'GS']) ?? summary.sourceMix?.gs,
+      PE: pickPercent(sourceMixRecord, ['PE', 'pe']) ?? summary.sourceMix?.PE,
+      FS: pickPercent(sourceMixRecord, ['FS', 'fs']) ?? summary.sourceMix?.FS,
+      GS: pickPercent(sourceMixRecord, ['GS', 'gs']) ?? summary.sourceMix?.GS
+    },
+    balanceHistory: balanceHistory.length > 0 ? balanceHistory : summary.balanceHistory,
+    reserveHistory: reserveHistory.length > 0 ? withTimeAlias(reserveHistory) : summary.reserveHistory,
+    lossesHistory: lossesHistory.length > 0 ? withTimeAlias(lossesHistory) : summary.lossesHistory,
+    sourceMixHistory: sourceMixHistory.length > 0 ? sourceMixHistory : summary.sourceMixHistory,
+    demandHistory: demandHistory.length > 0 ? demandHistory : summary.demandHistory,
+    servedStatus: servedRows
+  };
+};
+
+const enrichFactorySummary = async (summary: FactorySummary): Promise<FactorySummary> => {
+  const [overviewPayload, cyclePayload, statePayload] = await Promise.all([
+    fetchEndpointData('/api/factory/overview'),
+    fetchEndpointData('/api/factory/cycle'),
+    fetchEndpointData('/api/factory/state')
+  ]);
+
+  const cycleRows = extractSeriesRows(cyclePayload);
+  const stateRows = extractSeriesRows(statePayload);
+  const latestCycle = cycleRows[cycleRows.length - 1] ?? {};
+
+  const throughputHistory = normalizeThroughputHistory(cycleRows);
+  const cycleHistory = normalizeValueHistory(cycleRows, ['value', 'totalCycles', 'cycleCount']);
+  const uptimeHistory = normalizeUptimeHistory(stateRows);
+  const stateHistory = normalizeStateHistory(stateRows);
+
+  const overviewTimestamp = toTimestamp(
+    overviewPayload?.sourceUpdatedAt ?? overviewPayload?.generatedAt ?? summary.sourceUpdatedAt
+  );
+
+  const oeeHistory =
+    summary.oeeHistory && summary.oeeHistory.length > 0
+      ? summary.oeeHistory
+      : toSingleValueHistory(
+          pickPercent(overviewPayload ?? {}, ['oee', 'OEE', 'MES.OEE']) ?? summary.oee,
+          overviewTimestamp
+        );
+
+  const qualityPoint = pickPercent(overviewPayload ?? {}, ['quality', 'qualityPercent', 'MES.QualityPercent']) ?? summary.qualityPercent;
+  const availabilityPoint =
+    pickPercent(overviewPayload ?? {}, ['availability', 'availabilityPercent', 'MES.AvailabilityPercent']) ??
+    summary.availabilityPercent;
+  const performancePoint =
+    pickPercent(overviewPayload ?? {}, ['performance', 'performancePercent', 'MES.PerformancePercent']) ??
+    summary.performancePercent;
+  const qapHistory =
+    summary.qapHistory && summary.qapHistory.length > 0
+      ? summary.qapHistory
+      : qualityPoint !== undefined && availabilityPoint !== undefined && performancePoint !== undefined && overviewTimestamp
+        ? [{ timestamp: overviewTimestamp, quality: qualityPoint, availability: availabilityPoint, performance: performancePoint }]
+        : [];
+
+  return {
+    ...summary,
+    cycleActive: pickBoolean(latestCycle, ['cycleActive']) ?? summary.cycleActive,
+    cycleFinished: pickBoolean(latestCycle, ['cycleFinished', 'cycleDone']) ?? summary.cycleFinished,
+    totalCycles: pickNumber(latestCycle, ['totalCycles', 'cycleCount']) ?? summary.totalCycles,
+    cycleCount: pickNumber(latestCycle, ['cycleCount', 'totalCycles']) ?? summary.cycleCount,
+    throughputPerMin: pickNumber(latestCycle, ['throughputPerMin', 'perMin']) ?? summary.throughputPerMin,
+    throughputPerHour: pickNumber(latestCycle, ['throughputPerHour', 'perHour']) ?? summary.throughputPerHour,
+    oee: pickPercent(overviewPayload ?? {}, ['oee', 'OEE', 'MES.OEE']) ?? summary.oee,
+    qualityPercent: qualityPoint,
+    availabilityPercent: availabilityPoint,
+    performancePercent: performancePoint,
+    totalGood: pickNumber(overviewPayload ?? {}, ['totalGood', 'MES.TotalGood']) ?? summary.totalGood,
+    totalReject: pickNumber(overviewPayload ?? {}, ['totalReject', 'MES.TotalReject']) ?? summary.totalReject,
+    loadPercent: pickPercent(overviewPayload ?? {}, ['loadPercent', 'MES.LoadPercent']) ?? summary.loadPercent,
+    oeeHistory,
+    qapHistory,
+    throughputHistory: throughputHistory.length > 0 ? withTimeAlias(throughputHistory) : summary.throughputHistory,
+    cycleHistory: cycleHistory.length > 0 ? withTimeAlias(cycleHistory) : summary.cycleHistory,
+    uptimeHistory: uptimeHistory.length > 0 ? withTimeAlias(uptimeHistory) : summary.uptimeHistory,
+    stateHistory: stateHistory.length > 0 ? withTimeAlias(stateHistory) : summary.stateHistory
+  };
+};
+
+const enrichRailSummary = async (summary: RailSummary): Promise<RailSummary> => {
+  const [
+    autoOverviewPayload,
+    autoProgressPayload,
+    manualOverviewPayload,
+    routesPayload,
+    throughputPayload,
+    conflictsPayload,
+    safetyPayload,
+    routingPayload
+  ] = await Promise.all([
+    fetchEndpointData('/api/rail/auto-overview'),
+    fetchEndpointData('/api/rail/auto-progress'),
+    fetchEndpointData('/api/rail/manual-overview'),
+    fetchEndpointData('/api/rail/routes'),
+    fetchEndpointData('/api/rail/throughput'),
+    fetchEndpointData('/api/rail/conflicts'),
+    fetchEndpointData('/api/rail/safety-score'),
+    fetchEndpointData('/api/rail/routing-score')
+  ]);
+
+  const progressRows = extractSeriesRows(autoProgressPayload);
+  const throughputRows = extractSeriesRows(throughputPayload);
+  const conflictRows = extractSeriesRows(conflictsPayload);
+  const routeRows = asArray(routesPayload?.rows);
+  const latestProgress = progressRows[progressRows.length - 1] ?? {};
+  const latestThroughput = throughputRows[throughputRows.length - 1] ?? {};
+
+  const progressHistory = normalizeValueHistory(progressRows, ['value', 'progress', 'progressPct']);
+  const throughputHistory = normalizeValueHistory(throughputRows, ['value', 'railAutoThroughput', 'autoThroughput', 'throughput']);
+  const conflictHistory = normalizeValueHistory(conflictRows, ['value', 'conflictCount', 'directionConflict']);
+
+  const safetyScore = pickPercent(safetyPayload ?? {}, ['safetyScore', 'score', 'value']) ?? summary.railManual?.safetyScore;
+  const routingScore = pickPercent(routingPayload ?? {}, ['routingScore', 'score', 'value']) ?? summary.railManual?.routingScore;
+
+  const safetyHistory =
+    normalizeValueHistory(safetyPayload, ['value', 'safetyScore']).length > 0
+      ? normalizeValueHistory(safetyPayload, ['value', 'safetyScore'])
+      : toSingleValueHistory(
+          safetyScore,
+          toTimestamp(safetyPayload?.sourceUpdatedAt ?? safetyPayload?.generatedAt ?? summary.sourceUpdatedAt)
+        );
+
+  const routingHistory =
+    normalizeValueHistory(routingPayload, ['value', 'routingScore']).length > 0
+      ? normalizeValueHistory(routingPayload, ['value', 'routingScore'])
+      : toSingleValueHistory(
+          routingScore,
+          toTimestamp(routingPayload?.sourceUpdatedAt ?? routingPayload?.generatedAt ?? summary.sourceUpdatedAt)
+        );
+
+  const fesRoute = routeRows.find((row) => String(row.route ?? row.name ?? '').toLowerCase().includes('fes'));
+  const marrakechRoute = routeRows.find((row) =>
+    String(row.route ?? row.name ?? '').toLowerCase().includes('marrakech')
+  );
+
+  return {
+    ...summary,
+    railAuto: {
+      ...summary.railAuto,
+      progressPct:
+        pickPercent(latestProgress, ['progressPct', 'progress', 'value']) ??
+        pickPercent(autoOverviewPayload ?? {}, ['progressPct', 'progress']) ??
+        summary.railAuto?.progressPct,
+      step: pickNumber(latestProgress, ['step']) ?? pickNumber(autoOverviewPayload ?? {}, ['step']) ?? summary.railAuto?.step,
+      cycleActive:
+        pickBoolean(latestProgress, ['cycleActive']) ??
+        pickBoolean(autoOverviewPayload ?? {}, ['cycleActive']) ??
+        summary.railAuto?.cycleActive,
+      cycleDone:
+        pickBoolean(latestProgress, ['cycleDone']) ??
+        pickBoolean(autoOverviewPayload ?? {}, ['cycleDone']) ??
+        summary.railAuto?.cycleDone,
+      state:
+        pickNumber(autoOverviewPayload ?? {}, ['state']) ??
+        (typeof autoOverviewPayload?.state === 'string' ? autoOverviewPayload.state : summary.railAuto?.state),
+      faultType:
+        pickNumber(autoOverviewPayload ?? {}, ['faultType']) ??
+        (typeof autoOverviewPayload?.faultType === 'string'
+          ? autoOverviewPayload.faultType
+          : summary.railAuto?.faultType),
+      integrity: pickBoolean(autoOverviewPayload ?? {}, ['integrity']) ?? summary.railAuto?.integrity,
+      throughput:
+        pickNumber(latestThroughput, ['railAutoThroughput', 'autoThroughput', 'throughput', 'value']) ??
+        summary.railAuto?.throughput,
+      progressHistory: progressHistory.length > 0 ? withTimeAlias(progressHistory) : summary.railAuto?.progressHistory,
+      throughputHistory:
+        throughputHistory.length > 0 ? withTimeAlias(throughputHistory) : summary.railAuto?.throughputHistory
+    },
+    railManual: {
+      ...summary.railManual,
+      fesRouteValid:
+        pickBoolean(fesRoute ?? {}, ['valid']) ??
+        pickBoolean(manualOverviewPayload ?? {}, ['fesRouteValid']) ??
+        summary.railManual?.fesRouteValid,
+      marrakechRouteValid:
+        pickBoolean(marrakechRoute ?? {}, ['valid']) ??
+        pickBoolean(manualOverviewPayload ?? {}, ['marrakechRouteValid']) ??
+        summary.railManual?.marrakechRouteValid,
+      directionConflict:
+        pickBoolean(conflictsPayload ?? {}, ['directionConflict']) ??
+        pickBoolean(manualOverviewPayload ?? {}, ['directionConflict']) ??
+        summary.railManual?.directionConflict,
+      totalCycleCount:
+        pickNumber(latestThroughput, ['railManualTotalCycles', 'manualTotalCycles']) ??
+        pickNumber(manualOverviewPayload ?? {}, ['totalCycleCount']) ??
+        summary.railManual?.totalCycleCount,
+      fesCycleCount: pickNumber(fesRoute ?? {}, ['count', 'fesCycles']) ?? summary.railManual?.fesCycleCount,
+      marrakechCycleCount:
+        pickNumber(marrakechRoute ?? {}, ['count', 'marrakechCycles']) ?? summary.railManual?.marrakechCycleCount,
+      conflictCount: pickNumber(conflictsPayload ?? {}, ['conflictCount']) ?? summary.railManual?.conflictCount,
+      safetyScore,
+      routingScore,
+      safetyHistory: safetyHistory.length > 0 ? withTimeAlias(safetyHistory) : summary.railManual?.safetyHistory,
+      routingHistory: routingHistory.length > 0 ? withTimeAlias(routingHistory) : summary.railManual?.routingHistory,
+      conflictHistory:
+        conflictHistory.length > 0 ? withTimeAlias(conflictHistory) : summary.railManual?.conflictHistory
+    }
+  };
+};
+
 const fetchJsonWithTimeout = async <T>(path: string): Promise<T> => {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
@@ -707,23 +1103,29 @@ export const getOverview = async (): Promise<OverviewPayload> => {
 
 export const getPowerGridSummary = async (): Promise<PowerGridSummary> => {
   await wait();
-  return withFallback('/api/powergrid/overview', () => clone(powerGridMock), (payload, isFallback) =>
+  const summary = await withFallback('/api/powergrid/overview', () => clone(powerGridMock), (payload, isFallback) =>
     normalizePowerGrid(payload, isFallback)
   );
+  if (summary.fallback) return summary;
+  return enrichPowerGridSummary(summary);
 };
 
 export const getFactorySummary = async (): Promise<FactorySummary> => {
   await wait();
-  return withFallback('/api/factory/dashboard', () => clone(factoryMock), (payload, isFallback) =>
+  const summary = await withFallback('/api/factory/dashboard', () => clone(factoryMock), (payload, isFallback) =>
     normalizeFactory(payload, isFallback)
   );
+  if (summary.fallback) return summary;
+  return enrichFactorySummary(summary);
 };
 
 export const getRailSummary = async (): Promise<RailSummary> => {
   await wait();
-  return withFallback('/api/rail/dashboard', () => clone(railAutoMock), (payload, isFallback) =>
+  const summary = await withFallback('/api/rail/dashboard', () => clone(railAutoMock), (payload, isFallback) =>
     normalizeRail(payload, isFallback)
   );
+  if (summary.fallback) return summary;
+  return enrichRailSummary(summary);
 };
 
 export const getAlerts = async (): Promise<AlertsPayload> => {

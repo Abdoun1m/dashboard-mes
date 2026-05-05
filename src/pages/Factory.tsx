@@ -41,7 +41,7 @@ export const FactoryPage = () => {
   const qapHistory = summary?.qapHistory ?? [];
   const throughputHistory = summary?.throughputHistory ?? [];
   const cycleHistory = summary?.cycleHistory ?? [];
-  const uptimeHistory = summary?.uptimeHistory ?? [];
+  const stateHistory = summary?.stateHistory ?? [];
 
   return (
     <div className="space-y-6">
@@ -232,13 +232,16 @@ export const FactoryPage = () => {
           <ThroughputChart data={cycleHistory} />
         </div>
         <div className="panel">
-          <p className="panel-title">Uptime / Downtime History</p>
+          <p className="panel-title">Factory State History</p>
           <MultiLineTrendChart
-            data={uptimeHistory}
-            formatter={(value) => `${value.toFixed(0)} s`}
+            data={stateHistory}
+            domain={[0, 1]}
+            formatter={(value) => value.toFixed(0)}
             lines={[
-              { key: 'uptimeSeconds', label: 'Uptime', color: '#22c55e' },
-              { key: 'downtimeSeconds', label: 'Downtime', color: '#ef4444' }
+              { key: 'installationActive', label: 'Installation', color: '#22c55e' },
+              { key: 'cycleActive', label: 'Cycle Active', color: '#3b82f6' },
+              { key: 'cycleFinished', label: 'Cycle Finished', color: '#f97316' },
+              { key: 'recyclingActive', label: 'Recycling', color: '#ef4444' }
             ]}
           />
         </div>

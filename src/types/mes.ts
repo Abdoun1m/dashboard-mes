@@ -33,6 +33,14 @@ export interface HistoryUptimePoint {
   downtimeSeconds: number;
 }
 
+export interface HistoryStatePoint {
+  timestamp: string;
+  installationActive: number;
+  cycleActive: number;
+  cycleFinished: number;
+  recyclingActive: number;
+}
+
 export interface HistoryBalancePoint {
   timestamp: string;
   production: number;
@@ -170,6 +178,7 @@ export interface FactorySummary extends ApiMetadata {
   throughputHistory?: HistoryThroughputPoint[];
   cycleHistory?: HistoryValuePoint[];
   uptimeHistory?: HistoryUptimePoint[];
+  stateHistory?: HistoryStatePoint[];
 }
 
 export interface RailAutoSummary extends ApiMetadata {
