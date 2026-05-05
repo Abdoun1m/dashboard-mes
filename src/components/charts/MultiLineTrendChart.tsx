@@ -7,7 +7,7 @@ interface LineConfig {
 }
 
 interface MultiLineTrendChartProps {
-  data: Array<Record<string, string | number>>;
+  data: Array<{ timestamp: string }>;
   lines: LineConfig[];
   domain?: [number | 'auto', number | 'auto'];
   formatter?: (value: number) => string;
